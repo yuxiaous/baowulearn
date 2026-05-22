@@ -26,3 +26,6 @@ build/
 # OS
 Thumbs.db
 Desktop.ini
+
+# User credentials (do not commit)
+data/credentials.json

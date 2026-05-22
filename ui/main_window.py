@@ -79,7 +79,7 @@ class MainWindow(tk.Frame):
             self._tree.column(col_id, width=width, anchor=anchor, stretch=(col_id == "course_name"))
 
         # 颜色标记
-        self._tree.tag_configure("hanging",  foreground="#0a7a0a", font=("", 0, "bold"))
+        self._tree.tag_configure("hanging",  foreground="#0a7a0a")
         self._tree.tag_configure("waiting",  foreground="#0055cc")
         self._tree.tag_configure("completed",foreground="gray")
 

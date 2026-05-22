@@ -18,6 +18,7 @@ from typing import Callable
 from PIL import Image, ImageTk
 
 from api import auth
+from core import storage
 
 
 class LoginWindow(tk.Toplevel):
@@ -30,6 +31,7 @@ class LoginWindow(tk.Toplevel):
         self._captcha_photo: ImageTk.PhotoImage | None = None
 
         self._build_ui()
+        self._restore_credentials()
         self._load_captcha()
 
         # 居中显示
@@ -90,6 +92,14 @@ class LoginWindow(tk.Toplevel):
 
     # ── 加载验证码 ──────────────────────────────────────────────────────────────
 
+    def _restore_credentials(self) -> None:
+        """从本地存储恢复上次登录的工号和密码。"""
+        login_name, password = storage.load_credentials()
+        if login_name:
+            self._var_user.set(login_name)
+        if password:
+            self._var_pwd.set(password)
+
     def _load_captcha(self) -> None:
         self._captcha_label.config(text="加载中…", image="")
         threading.Thread(target=self._fetch_captcha, daemon=True).start()
@@ -148,6 +158,7 @@ class LoginWindow(tk.Toplevel):
             self.after(0, self._handle_login_fail, str(exc))
 
     def _handle_login_ok(self, token: str) -> None:
+        storage.save_credentials(self._var_user.get().strip(), self._var_pwd.get())
         self.destroy()
         self._on_success(token)
 
