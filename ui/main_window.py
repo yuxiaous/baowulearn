@@ -1,9 +1,4 @@
-"""
-主窗口：课程列表 + 挂机队列控制。
-
-当前阶段：仅展示课程列表（只读）。
-挂机/心跳功能留待后续阶段实现，预留了按钮位置。
-"""
+"""主窗口：课程列表 + 挂机队列控制。"""
 
 from __future__ import annotations
 
@@ -13,7 +8,9 @@ from tkinter import messagebox, ttk
 from typing import Callable
 
 from api import course as course_api
+from core.queue_manager import QueueManager
 from models.course import Course, HangStatus
+from models.video import Video
 
 
 class MainWindow(tk.Frame):
@@ -22,6 +19,13 @@ class MainWindow(tk.Frame):
         self.pack(fill="both", expand=True)
         self._on_logout = on_logout
         self._courses: list[Course] = []
+
+        self._queue_mgr = QueueManager(
+            schedule_ui=lambda fn: self.after(0, fn),
+            on_state_change=self._refresh_tree_tags,
+            on_progress=self._on_hang_progress,
+            on_error=self._on_hang_error,
+        )
 
         self._build_ui()
         self._load_courses()
@@ -88,7 +92,34 @@ class MainWindow(tk.Frame):
         vsb.pack(side="left",  fill="y", pady=6)
         hsb.pack(side="bottom", fill="x", padx=10)
 
-    # ── 数据加载 ────────────────────────────────────────────────────────────────
+    # ── 数据加载 ──────────────────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _finish_info_str(course: Course) -> str:
+        """将 course.finish_info 格式化为显示字符串。
+
+        有数据时返回如 "2.5/151分钟 (100%)";
+        无数据时回落到 near_learn_hours 的秒数展示。
+        """
+        info = course.finish_info
+        if info:
+            for detail in info.get("details") or []:
+                unit = detail.get("attributeUnit", "")
+                pct = detail.get("percentage", "")
+                finish = detail.get("finishValue") or ""
+                pred = detail.get("predValue") or ""
+                try:
+                    finish_f = float(finish)
+                    return f"{finish_f:.2f}/{pred}{unit} ({pct}%)"
+                except ValueError:
+                    pass
+        # 回落：用 near_learn_hours
+        sec = course.near_learn_hours
+        if sec >= 3600:
+            return f"{sec / 3600:.1f}h"
+        if sec >= 60:
+            return f"{sec // 60}m"
+        return f"{sec}s" if sec else "-"
 
     def _load_courses(self) -> None:
         self._status_var.set("加载中…")
@@ -115,13 +146,6 @@ class MainWindow(tk.Frame):
         self._tree.delete(*self._tree.get_children())
         for c in courses:
             total_str = f"{c.course_hours:.1f}h"
-            watched_sec = c.near_learn_hours
-            if watched_sec >= 3600:
-                watched_str = f"{watched_sec/3600:.1f}h"
-            elif watched_sec >= 60:
-                watched_str = f"{watched_sec//60}m"
-            else:
-                watched_str = f"{watched_sec}s" if watched_sec else "-"
 
             tag = ""
             if c.hang_status == HangStatus.HANGING:
@@ -135,13 +159,13 @@ class MainWindow(tk.Frame):
                 "",
                 "end",
                 iid=c.course_guid,
-                values=(c.class_name, c.course_name, c.display_status, total_str, watched_str),
+                values=(c.class_name, c.course_name, c.display_status, total_str, self._finish_info_str(c)),
                 tags=(tag,) if tag else (),
             )
 
         self._status_var.set(f"共 {len(courses)} 门课程")
 
-    # ── 按钮操作（占位，挂机逻辑待 Phase 3 实现）────────────────────────────────
+    # ── 按钮操作 ─────────────────────────────────────────────────────────────────
 
     def _selected_courses(self) -> list[Course]:
         selected_ids = self._tree.selection()
@@ -156,10 +180,7 @@ class MainWindow(tk.Frame):
             if c.is_completed:
                 messagebox.showwarning("提示", f"《{c.course_name}》已完成，无需挂机", parent=self)
                 continue
-            if c.hang_status == HangStatus.IDLE:
-                c.hang_status = HangStatus.WAITING
-        self._refresh_tree_tags()
-        # TODO Phase 3: 通知 queue_manager
+            self._queue_mgr.enqueue(c)
 
     def _remove_from_queue(self) -> None:
         courses = self._selected_courses()
@@ -167,19 +188,33 @@ class MainWindow(tk.Frame):
             messagebox.showinfo("提示", "请先选择课程", parent=self)
             return
         for c in courses:
-            if c.hang_status in (HangStatus.WAITING, HangStatus.HANGING):
-                c.hang_status = HangStatus.IDLE
-        self._refresh_tree_tags()
-        # TODO Phase 3: 通知 queue_manager
+            self._queue_mgr.dequeue(c)
 
     def _stop_all(self) -> None:
-        for c in self._courses:
-            c.hang_status = HangStatus.IDLE
-        self._refresh_tree_tags()
-        # TODO Phase 3: 停止心跳线程
+        self._queue_mgr.stop_all()
+
+    # ── 挂机回调（在主线程执行）──────────────────────────────────────────────────
+
+    def _on_hang_progress(self, course: Course, video: Video, elapsed: int, total: int) -> None:
+        """每秒刷新状态栏进度；如果 finish_info 已更新则同步刷新行内容。"""
+        pct = elapsed * 100 // total if total else 0
+        self._status_var.set(
+            f"挂机中：{course.course_name}  [{video.index + 1}] {video.name}"
+            f"  {elapsed // 60}:{elapsed % 60:02d}/{total // 60}:{total % 60:02d}"
+            f"  ({pct}%)"
+        )
+        # 每次回调都更新行中的 已学时长 列（finish_info 变化时自动刷新）
+        if self._tree.exists(course.course_guid):
+            values = self._tree.item(course.course_guid, "values")
+            if values:
+                self._tree.set(course.course_guid, "watched", self._finish_info_str(course))
+
+    def _on_hang_error(self, msg: str) -> None:
+        messagebox.showerror("挂机错误", msg, parent=self)
+        self._status_var.set("就绪")
 
     def _refresh_tree_tags(self) -> None:
-        """仅刷新行标签和状态列，避免重新请求接口。"""
+        """刷新行标签和 已学时长 列，避免重新请求接口。队列为空时重置状态栏。"""
         for c in self._courses:
             if not self._tree.exists(c.course_guid):
                 continue
@@ -194,9 +229,6 @@ class MainWindow(tk.Frame):
                 c.course_guid,
                 tags=(tag,) if tag else (),
             )
-            # 刷新状态列
-            values = self._tree.item(c.course_guid, "values")
-            self._tree.item(
-                c.course_guid,
-                values=(values[0], values[1], c.display_status, values[3], values[4]),
-            )
+            self._tree.set(c.course_guid, "watched", self._finish_info_str(c))
+        if not self._queue_mgr.is_running:
+            self._status_var.set("就绪")

@@ -28,9 +28,13 @@ class Course:
 
     class_guid: str = ""      # olClassNo / guid
     center_code: str = ""     # centerCode
+    tenant_code: str = ""     # tenantCode
 
     # 本地挂机状态（不来自服务端）
     hang_status: HangStatus = field(default=HangStatus.IDLE, compare=False)
+
+    # 最近一次 finishInfo 查询结果（挂机时实时更新）
+    finish_info: dict | None = field(default=None, compare=False)
 
     # ── 派生属性 ────────────────────────────────────────────────────────────────
 
@@ -66,4 +70,5 @@ class Course:
             near_learn_hours=int(record.get("nearLearnHours") or 0),
             class_guid=str(record.get("guid", "")),
             center_code=str(record.get("centerCode", "")),
+            tenant_code=str(record.get("tenantCode", "")),
         )
