@@ -52,7 +52,7 @@ class MainWindow(tk.Frame):
         ).pack(side="left", padx=2)
 
         if self._on_logout:
-            ttk.Button(toolbar, text="退出", command=self._on_logout).pack(
+            ttk.Button(toolbar, text="退出", command=self._logout).pack(
                 side="right", padx=2
             )
 
@@ -65,7 +65,7 @@ class MainWindow(tk.Frame):
         status_bar.pack(side="bottom", fill="x")
 
         # ── 课程 Treeview ─────────────────────────────────────────────────────
-        columns = ("class_name", "course_name", "status", "total", "watched")
+        columns = ("class_name", "course_name", "status", "total", "watched", "score")
         self._tree = ttk.Treeview(
             self,
             columns=columns,
@@ -77,8 +77,9 @@ class MainWindow(tk.Frame):
             ("class_name",   "班级",      180, "w"),
             ("course_name",  "课程名称",   280, "w"),
             ("status",       "状态",        70, "center"),
-            ("total",        "总时长",       70, "center"),
-            ("watched",      "已学时长",     80, "center"),
+            ("total",        "学时",        60, "center"),
+            ("watched",      "已学时长",     100, "center"),
+            ("score",        "课程成绩",     80, "center"),
         ]
         for col_id, heading, width, anchor in col_cfg:
             self._tree.heading(col_id, text=heading)
@@ -101,6 +102,42 @@ class MainWindow(tk.Frame):
     # ── 数据加载 ──────────────────────────────────────────────────────────────────────
 
     @staticmethod
+    def _is_duration_completed(course: Course) -> bool:
+        """基于已学时长判断是否完成。有 finishInfo 时用它，否则回退到服务端 learnStatus。"""
+        info = course.finish_info
+        if info:
+            for detail in info.get("details") or []:
+                try:
+                    pred_f = float(detail.get("predValue") or "0")
+                    if pred_f <= 0:
+                        continue
+                    return float(detail.get("finishValue") or "0") >= pred_f
+                except ValueError:
+                    continue
+        return course.is_completed
+
+    @staticmethod
+    def _status_str(course: Course) -> str:
+        """状态列显示文字：以学时完成情况为准。"""
+        if course.hang_status == HangStatus.HANGING:
+            return "挂机中"
+        if course.hang_status == HangStatus.WAITING:
+            return "等待中"
+        return "已完成" if MainWindow._is_duration_completed(course) else "未完成"
+
+    @staticmethod
+    def _score_str(course: Course) -> str:
+        """从 finish_info 取课程成绩（learnScore）。"""
+        info = course.finish_info
+        if info:
+            score = info.get("learnScore") or ""
+            try:
+                return f"{float(score):.2f}"
+            except ValueError:
+                pass
+        return "-"
+
+    @staticmethod
     def _finish_info_str(course: Course) -> str:
         """将 course.finish_info 格式化为显示字符串。
 
@@ -111,12 +148,11 @@ class MainWindow(tk.Frame):
         if info:
             for detail in info.get("details") or []:
                 unit = detail.get("attributeUnit", "")
-                pct = detail.get("percentage", "")
                 finish = detail.get("finishValue") or ""
                 pred = detail.get("predValue") or ""
                 try:
                     finish_f = float(finish)
-                    return f"{finish_f:.2f}/{pred}{unit} ({pct}%)"
+                    return f"{finish_f:.2f}/{pred}{unit}"
                 except ValueError:
                     pass
         sec = course.near_learn_hours
@@ -170,21 +206,22 @@ class MainWindow(tk.Frame):
         # 清空并重填 Treeview
         self._tree.delete(*self._tree.get_children())
         for c in courses:
-            total_str = f"{c.course_hours:.1f}h"
+            total_str = f"{c.course_hours:.1f}"
 
             tag = ""
             if c.hang_status == HangStatus.HANGING:
                 tag = "hanging"
             elif c.hang_status == HangStatus.WAITING:
                 tag = "waiting"
-            elif c.is_completed:
+            elif self._is_duration_completed(c):
                 tag = "completed"
 
             self._tree.insert(
                 "",
                 "end",
                 iid=c.course_guid,
-                values=(c.class_name, c.course_name, c.display_status, total_str, self._finish_info_str(c)),
+                values=(c.class_name, c.course_name, self._status_str(c), total_str,
+                        self._finish_info_str(c), self._score_str(c)),
                 tags=(tag,) if tag else (),
             )
 
@@ -218,6 +255,12 @@ class MainWindow(tk.Frame):
     def _stop_all(self) -> None:
         self._queue_mgr.stop_all()
 
+    def _logout(self) -> None:
+        """先停止全部挂机任务，再执行退出回调，避免后台线程访问已销毁的窗口。"""
+        self._queue_mgr.stop_all()
+        if self._on_logout:
+            self._on_logout()
+
     # ── 挂机回调（在主线程执行）──────────────────────────────────────────────────
 
     def _on_hang_progress(self, course: Course, video: Video, elapsed: int, total: int) -> None:
@@ -235,9 +278,24 @@ class MainWindow(tk.Frame):
         self._status_var.set("就绪")
 
     def _update_finish_info_cell(self, course: Course) -> None:
-        """更新指定行的"已学时长"列（主线程调用）。"""
-        if self._tree.exists(course.course_guid):
-            self._tree.set(course.course_guid, "watched", self._finish_info_str(course))
+        """更新指定行的状态、已学时长和课程成绩列（主线程调用）。"""
+        try:
+            if self._tree.exists(course.course_guid):
+                self._tree.set(course.course_guid, "status", self._status_str(course))
+                self._tree.set(course.course_guid, "watched", self._finish_info_str(course))
+                self._tree.set(course.course_guid, "score", self._score_str(course))
+                # 同步更新行颜色标签
+                if course.hang_status == HangStatus.HANGING:
+                    tag = "hanging"
+                elif course.hang_status == HangStatus.WAITING:
+                    tag = "waiting"
+                elif self._is_duration_completed(course):
+                    tag = "completed"
+                else:
+                    tag = ""
+                self._tree.item(course.course_guid, tags=(tag,) if tag else ())
+        except Exception:  # noqa: BLE001
+            pass  # 窗口已销毁，忽略
 
     def _refresh_tree_tags(self) -> None:
         """刷新行标签和 已学时长 列，避免重新请求接口。队列为空时重置状态栏。"""
@@ -249,12 +307,13 @@ class MainWindow(tk.Frame):
                 tag = "hanging"
             elif c.hang_status == HangStatus.WAITING:
                 tag = "waiting"
-            elif c.is_completed:
+            elif self._is_duration_completed(c):
                 tag = "completed"
             self._tree.item(
                 c.course_guid,
                 tags=(tag,) if tag else (),
             )
+            self._tree.set(c.course_guid, "status", self._status_str(c))
             self._update_finish_info_cell(c)
         if not self._queue_mgr.is_running:
             self._status_var.set("就绪")
