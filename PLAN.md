@@ -69,29 +69,55 @@ python main.py
 
 ---
 
-## 3. 待完成阶段
+## 3. 已完成阶段：阶段二 — 课程列表
 
-### 阶段二 — 课程列表（需要新 HAR）
+### 技术发现
 
-**需要用户抓包的操作：** 登录后进入课程列表页面
+| 项目 | 详情 |
+|---|---|
+| 课程列表 API | `POST /learn-gateway/service/tms/ols/student/queryPageOpenClass` |
+| 分页参数 | `{"current":1,"size":100,"data":{"learnStatus":"","searchInfo":"","searchType":"1","sortClass":"1","sortType":"desc"}}` |
+| learnStatus | `""` 全部，`"1"` 学习中，`"2"` 已完成 |
 
-**需要找到的 API：**
-- 获取课程列表（公开课、必修课等）
-- 每门课的字段：ID、名称、状态、总时长、已看时长、成绩
+### 课程记录关键字段
 
-**计划实现：**
-- `api/course.py`：`get_courses() → List[Course]`
-- `models/course.py`：`Course` dataclass
-- `ui/main_window.py`：`ttk.Treeview` 课程列表，显示状态/时长/成绩
+| 字段 | 含义 |
+|---|---|
+| `courseGuid` | 课程 ID（挂机 API 使用） |
+| `courseNo` | 课程编号 |
+| `courseName` | 课程名称 |
+| `olClassName` | 所属班级名称 |
+| `learnStatus` | `"1"` 学习中 / `"2"` 已完成 |
+| `courseHours` | 总时长（小时，float） |
+| `nearLearnHours` | 已学时长（秒，int） |
+| `centerCode` | 学习中心代码 |
+
+### 新增文件
+
+```
+baowulearn/
+├── main.py                   ✅ 更新：登录后打开主窗口
+├── models/
+│   ├── __init__.py           ✅
+│   └── course.py             ✅ Course dataclass + HangStatus 枚举
+├── api/
+│   └── course.py             ✅ get_courses()
+└── ui/
+    └── main_window.py        ✅ Treeview 课程列表 + 工具栏按钮
+```
+
+---
+
+## 4. 待完成阶段
 
 ### 阶段三 — 挂机引擎（需要新 HAR）
 
-**需要用户抓包的操作：** 开始观看视频，等待约 60 秒看到心跳请求，完成视频
+**需要用户抓包的操作：** 点击开始观看某视频，等待约 60 秒看到心跳请求，完成视频
 
 **需要找到的 API：**
-- 开始视频（`start` 或 `play`）
-- 心跳（`heartbeat`）：每 60 秒，携带当前播放位置
-- 完成视频（`complete`）
+- 开始视频（`start` 或 `play`）：携带 courseGuid、视频 ID 等
+- 心跳（`heartbeat`）：每 60 秒发一次，携带当前播放位置（秒）
+- 完成视频（`complete`）：最后一次心跳后发送
 
 **计划实现：**
 
@@ -103,18 +129,19 @@ core/
 
 **心跳时序（关键）：**
 ```
-t=0       开始视频
+t=0       开始视频（start API）
 t=60      第一次心跳（position=60）
 t=120     第二次心跳（position=120）
 …
-t=T-ε     最后一次心跳（position=T，精确结束位置）
-t=T       发送完成信号 → 触发下一视频/课程
+t=T       最后一次心跳（position=T，精确结束时长）
+          + 完成信号（complete API）→ 触发下一视频/课程
 ```
 
 **队列逻辑：**
-- 用户通过 UI 将课程加入等待队列
-- 系统一次处理一门课，每门课内顺序完成所有视频
+- 用户通过主窗口"加入队列"按钮将课程加入等待队列
+- 系统一次处理一门课，同一门课内按视频顺序依次完成
 - 支持随时停止（threading.Event）
+- 完成后自动拉取下一课（WAITING → HANGING）
 
 ### 阶段四 — 打包
 
@@ -127,7 +154,35 @@ pyinstaller --onefile --windowed main.py
 
 ---
 
-## 4. 架构约定
+## 5. 当前项目结构
+
+```
+baowulearn/
+├── main.py                   ✅ 入口（登录 → 主窗口）
+├── config.py                 ✅ BASE_URL + SM2公钥 + 请求头
+├── requirements.txt          ✅ requests, Pillow, gmssl
+├── PLAN.md                   ✅ 本文件
+├── .gitignore                ✅
+├── core/
+│   ├── __init__.py           ✅
+│   └── crypto.py             ✅ sm2_encrypt()
+├── api/
+│   ├── __init__.py           ✅
+│   ├── client.py             ✅ requests.Session 封装
+│   ├── auth.py               ✅ get_captcha() + login()
+│   └── course.py             ✅ get_courses()
+├── ui/
+│   ├── __init__.py           ✅
+│   ├── login_window.py       ✅ 登录窗口
+│   └── main_window.py        ✅ 课程列表主窗口
+└── models/
+    ├── __init__.py           ✅
+    └── course.py             ✅ Course dataclass + HangStatus
+```
+
+---
+
+## 6. 架构约定
 
 | 约定 | 说明 |
 |---|---|

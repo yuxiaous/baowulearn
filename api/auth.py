@@ -49,7 +49,6 @@ def login(
     工号和密码在发送前用 SM2 公钥加密。
     返回 accessToken 字符串；失败则抛出 RuntimeError。
     """
-
     payload = {
         "mobile": "",
         "loginName": sm2_encrypt(login_name),
