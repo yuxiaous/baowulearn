@@ -120,6 +120,22 @@ def get_finish_info(course: Course) -> dict | None:
     return None
 
 
+def save_compute_task_course_detail(course: Course) -> None:
+    """
+    触发服务端重新计算课程完成情况。
+
+    必须在每次心跳后调用，服务端才会更新 finishInfo.finishValue。
+    请求体：{"classNo": olClassNo, "courseNo": courseNo}
+    """
+    try:
+        client.post(
+            "/service/tms/ols/computeTask/saveComputeTask4StuCourseDetail",
+            json={"classNo": course.class_guid, "courseNo": course.course_no},
+        )
+    except Exception:  # noqa: BLE001
+        pass
+
+
 # ── 学习记录初始化 ─────────────────────────────────────────────────────────────
 
 def init_learn_record(course_no: str, ol_class_no: str, page_id: str) -> None:

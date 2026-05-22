@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import tkinter as tk
 from tkinter import messagebox, ttk
 from typing import Callable
 
 from api import course as course_api
+from api import video as video_api
 from core.queue_manager import QueueManager
 from models.course import Course, HangStatus
 from models.video import Video
@@ -19,6 +21,7 @@ class MainWindow(tk.Frame):
         self.pack(fill="both", expand=True)
         self._on_logout = on_logout
         self._courses: list[Course] = []
+        self._fetch_gen: int = 0  # 每次刷新递增，用于取消旧的 finishInfo 批量拉取
 
         self._queue_mgr = QueueManager(
             schedule_ui=lambda fn: self.after(0, fn),
@@ -53,10 +56,13 @@ class MainWindow(tk.Frame):
                 side="right", padx=2
             )
 
+        # ── 底部状态栏（必须在 Treeview 之前 pack，才能占据底部整行）────────────
         self._status_var = tk.StringVar(value="就绪")
-        ttk.Label(toolbar, textvariable=self._status_var, foreground="gray").pack(
-            side="right", padx=8
+        status_bar = ttk.Label(
+            self, textvariable=self._status_var,
+            foreground="gray", anchor="w", relief="sunken", padding=(6, 2)
         )
+        status_bar.pack(side="bottom", fill="x")
 
         # ── 课程 Treeview ─────────────────────────────────────────────────────
         columns = ("class_name", "course_name", "status", "total", "watched")
@@ -98,7 +104,7 @@ class MainWindow(tk.Frame):
     def _finish_info_str(course: Course) -> str:
         """将 course.finish_info 格式化为显示字符串。
 
-        有数据时返回如 "2.5/151分钟 (100%)";
+        直接反映服务端返回的数据，如 "2.5/151分钟 (100%)";
         无数据时回落到 near_learn_hours 的秒数展示。
         """
         info = course.finish_info
@@ -113,7 +119,6 @@ class MainWindow(tk.Frame):
                     return f"{finish_f:.2f}/{pred}{unit} ({pct}%)"
                 except ValueError:
                     pass
-        # 回落：用 near_learn_hours
         sec = course.near_learn_hours
         if sec >= 3600:
             return f"{sec / 3600:.1f}h"
@@ -122,13 +127,33 @@ class MainWindow(tk.Frame):
         return f"{sec}s" if sec else "-"
 
     def _load_courses(self) -> None:
+        self._fetch_gen += 1
         self._status_var.set("加载中…")
         threading.Thread(target=self._fetch_courses, daemon=True).start()
 
     def _fetch_courses(self) -> None:
+        gen = self._fetch_gen
         try:
             courses = course_api.get_courses()
             self.after(0, self._populate_tree, courses)
+            # 并发拉取每门课的完成情况（最多 8 个并发请求）
+            def _fetch_one(c: Course) -> tuple[Course, dict | None]:
+                if self._fetch_gen != gen:
+                    return c, None
+                return c, video_api.get_finish_info(c)
+
+            with ThreadPoolExecutor(max_workers=8) as pool:
+                futures = {pool.submit(_fetch_one, c): c for c in courses}
+                for future in as_completed(futures):
+                    if self._fetch_gen != gen:
+                        break
+                    try:
+                        c, info = future.result()
+                        if info is not None:
+                            c.finish_info = info
+                            self.after(0, self._update_finish_info_cell, c)
+                    except Exception:  # noqa: BLE001
+                        pass
         except Exception as exc:  # noqa: BLE001
             self.after(0, lambda: self._status_var.set(f"加载失败: {exc}"))
 
@@ -203,15 +228,16 @@ class MainWindow(tk.Frame):
             f"  {elapsed // 60}:{elapsed % 60:02d}/{total // 60}:{total % 60:02d}"
             f"  ({pct}%)"
         )
-        # 每次回调都更新行中的 已学时长 列（finish_info 变化时自动刷新）
-        if self._tree.exists(course.course_guid):
-            values = self._tree.item(course.course_guid, "values")
-            if values:
-                self._tree.set(course.course_guid, "watched", self._finish_info_str(course))
+        self._update_finish_info_cell(course)
 
     def _on_hang_error(self, msg: str) -> None:
         messagebox.showerror("挂机错误", msg, parent=self)
         self._status_var.set("就绪")
+
+    def _update_finish_info_cell(self, course: Course) -> None:
+        """更新指定行的"已学时长"列（主线程调用）。"""
+        if self._tree.exists(course.course_guid):
+            self._tree.set(course.course_guid, "watched", self._finish_info_str(course))
 
     def _refresh_tree_tags(self) -> None:
         """刷新行标签和 已学时长 列，避免重新请求接口。队列为空时重置状态栏。"""
@@ -229,6 +255,6 @@ class MainWindow(tk.Frame):
                 c.course_guid,
                 tags=(tag,) if tag else (),
             )
-            self._tree.set(c.course_guid, "watched", self._finish_info_str(c))
+            self._update_finish_info_cell(c)
         if not self._queue_mgr.is_running:
             self._status_var.set("就绪")

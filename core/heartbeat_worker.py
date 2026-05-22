@@ -125,7 +125,7 @@ class HeartbeatWorker:
                 self._try_call(video_api.mark_progress, course, video, page_id, marks[next_mark_idx])
                 next_mark_idx += 1
 
-            # 每 60 秒发一次心跳
+            # 每 60 秒发一次心跳，然后触发服务端重算完成情况
             if elapsed - last_heartbeat >= 60:
                 self._try_call(
                     video_api.send_heartbeat,
@@ -161,7 +161,11 @@ class HeartbeatWorker:
     # ── 容错调用 ──────────────────────────────────────────────────────────────
 
     def _refresh_finish_info(self) -> None:
-        """调用 finishInfo 接口，将结果存入 course.finish_info（后台线程调用）。"""
+        """触发服务端重算，然后查询 finishInfo 更新到 course.finish_info。"""
+        try:
+            video_api.save_compute_task_course_detail(self._course)
+        except Exception:  # noqa: BLE001
+            pass
         try:
             info = video_api.get_finish_info(self._course)
             if info is not None:
