@@ -6,33 +6,61 @@ from api import client
 from models.course import Course
 
 
-def get_courses(
-    learn_status: str = "",
+def get_openclass_courses(
     page: int = 1,
     page_size: int = 100,
+    search_type: str = "1",
 ) -> list[Course]:
     """
-    获取当前学员的公开课列表。
+    获取公开课课程列表（公开课标签页使用）。
 
-    learn_status: "" 全部, "1" 学习中, "2" 已完成
-    返回 Course 列表（单次拉取，默认 page_size=100 覆盖全部）。
+    search_type: "1" 全部, "2" 学习中, "3" 已完成
     """
-    payload = {
-        "current": page,
-        "size": page_size,
-        "data": {
-            "learnStatus": learn_status,
-            "searchInfo": "",
-            "searchType": "1",
-            "sortClass": "1",
-            "sortType": "desc",
-        },
-    }
     resp = client.post(
-        "/service/tms/ols/student/queryPageOpenClass", json=payload
+        "/service/tms/ols/student/queryPageOpenClass",
+        json={
+            "current": page,
+            "size": page_size,
+            "data": {
+                "learnStatus": "",
+                "searchInfo": "",
+                "searchType": search_type,
+                "sortClass": "1",
+                "sortType": "desc",
+            },
+        },
     )
     if not resp.get("isSuccess"):
         raise RuntimeError(f"获取课程列表失败: {resp.get('message', resp)}")
 
     records = resp["data"].get("records", [])
     return [Course.from_api(r) for r in records]
+
+
+def get_my_classes() -> list[dict]:
+    """
+    获取我的专区课程班列表（myClassPage），只返回 ZE0 类型的专区记录。
+    """
+    try:
+        resp = client.post(
+            "/service/tms/ols/student/myClassPage",
+            json={
+                "current": 1,
+                "size": 10,
+                "data": {
+                    "classType": "ZE0",
+                    "isLearnNum": "1",
+                    "keyWord": "",
+                    "lastLearnTime": "1",
+                    "learnStatus": "",
+                    "sortClass": "1",
+                    "sortType": "desc",
+                    "status": "",
+                },
+            },
+        )
+        if not resp.get("isSuccess"):
+            return []
+        return resp["data"].get("records", [])
+    except Exception:  # noqa: BLE001
+        return []

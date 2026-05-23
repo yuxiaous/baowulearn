@@ -22,6 +22,8 @@ class MainWindow(tk.Frame):
         self._on_logout = on_logout
         self._courses: list[Course] = []
         self._fetch_gen: int = 0  # 每次刷新递增，用于取消旧的 finishInfo 批量拉取
+        self._tab_data: list[dict] = []   # [{"label": str, "class_no": str|None}, ...]
+        self._current_tab: int = 0
 
         self._queue_mgr = QueueManager(
             schedule_ui=lambda fn: self.after(0, fn),
@@ -31,7 +33,7 @@ class MainWindow(tk.Frame):
         )
 
         self._build_ui()
-        self._load_courses()
+        self._load_tabs()
 
     # ── 构建界面 ────────────────────────────────────────────────────────────────
 
@@ -64,10 +66,33 @@ class MainWindow(tk.Frame):
         )
         status_bar.pack(side="bottom", fill="x")
 
-        # ── 课程 Treeview ─────────────────────────────────────────────────────
+        # ── 主内容区域（左侧标签页 + 右侧课程列表）────────────────────────────────
+        content = ttk.Frame(self)
+        content.pack(fill="both", expand=True, pady=(4, 0))
+
+        # ── 左侧标签页 ────────────────────────────────────────────────────────
+        tabs_outer = ttk.Frame(content, width=150)
+        tabs_outer.pack(side="left", fill="y", padx=(10, 4))
+        tabs_outer.pack_propagate(False)
+
+        ttk.Label(tabs_outer, text="课程分类", foreground="gray",
+                  font=("", 8)).pack(anchor="w", pady=(4, 2), padx=4)
+
+        self._tab_listbox = tk.Listbox(
+            tabs_outer, selectmode="single", activestyle="none",
+            relief="solid", borderwidth=1, highlightthickness=0,
+            font=("", 9), cursor="hand2",
+        )
+        self._tab_listbox.pack(fill="both", expand=True, pady=(0, 4))
+        self._tab_listbox.bind("<<ListboxSelect>>", self._on_tab_select)
+
+        # ── 右侧课程 Treeview ─────────────────────────────────────────────────
+        tree_frame = ttk.Frame(content)
+        tree_frame.pack(side="left", fill="both", expand=True)
+
         columns = ("class_name", "course_name", "status", "total", "watched", "score")
         self._tree = ttk.Treeview(
-            self,
+            tree_frame,
             columns=columns,
             show="headings",
             selectmode="extended",
@@ -78,7 +103,7 @@ class MainWindow(tk.Frame):
             ("course_name",  "课程名称",   280, "w"),
             ("status",       "状态",        70, "center"),
             ("total",        "学时",        60, "center"),
-            ("watched",      "已学时长",     100, "center"),
+            ("watched",      "已学时长",    140, "center"),
             ("score",        "课程成绩",     80, "center"),
         ]
         for col_id, heading, width, anchor in col_cfg:
@@ -86,18 +111,18 @@ class MainWindow(tk.Frame):
             self._tree.column(col_id, width=width, anchor=anchor, stretch=(col_id == "course_name"))
 
         # 颜色标记
-        self._tree.tag_configure("hanging",  foreground="#0a7a0a")
-        self._tree.tag_configure("waiting",  foreground="#0055cc")
-        self._tree.tag_configure("completed",foreground="gray")
+        self._tree.tag_configure("hanging",   foreground="#0a7a0a")
+        self._tree.tag_configure("waiting",   foreground="#0055cc")
+        self._tree.tag_configure("completed", foreground="gray")
 
-        # 滚动条
-        vsb = ttk.Scrollbar(self, orient="vertical",   command=self._tree.yview)
-        hsb = ttk.Scrollbar(self, orient="horizontal",  command=self._tree.xview)
+        # 滚动条（hsb 先 pack 以确保占据底部）
+        vsb = ttk.Scrollbar(tree_frame, orient="vertical",   command=self._tree.yview)
+        hsb = ttk.Scrollbar(tree_frame, orient="horizontal", command=self._tree.xview)
         self._tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
 
-        self._tree.pack(side="left",  fill="both", expand=True, padx=(10, 0), pady=6)
-        vsb.pack(side="left",  fill="y", pady=6)
-        hsb.pack(side="bottom", fill="x", padx=10)
+        hsb.pack(side="bottom", fill="x")
+        self._tree.pack(side="left", fill="both", expand=True, pady=6)
+        vsb.pack(side="left", fill="y", pady=6)
 
     # ── 数据加载 ──────────────────────────────────────────────────────────────────────
 
@@ -162,6 +187,48 @@ class MainWindow(tk.Frame):
             return f"{sec // 60}m"
         return f"{sec}s" if sec else "-"
 
+    def _load_tabs(self) -> None:
+        """初始化标签页：先放公开课，再异步追加有效期内的专区。"""
+        self._tab_data = [{"label": "公开课", "class_no": None}]
+        self._tab_listbox.delete(0, "end")
+        self._tab_listbox.insert("end", "公开课")
+        self._tab_listbox.selection_set(0)
+        self._current_tab = 0
+        self._load_courses()
+        threading.Thread(target=self._fetch_tabs, daemon=True).start()
+
+    def _fetch_tabs(self) -> None:
+        """后台拉取专区列表，过滤出有效期内的 ZE0 类型专区，追加到标签栏。"""
+        from datetime import date
+        today = date.today().isoformat()
+        try:
+            classes = course_api.get_my_classes()
+            print("全部专区:", classes)
+            valid = [c for c in classes if (c.get("endTime") or "") >= today]
+            self.after(0, self._add_class_tabs, valid)
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _add_class_tabs(self, classes: list[dict]) -> None:
+        """将有效专区追加到标签页列表。"""
+        for c in classes:
+            self._tab_data.append({
+                "label": c.get("olClassName", ""),
+                "class_no": c.get("olClassNo", ""),
+            })
+            self._tab_listbox.insert("end", c.get("olClassName", ""))
+
+    def _on_tab_select(self, _event=None) -> None:
+        """切换标签页时重新加载对应课程列表。"""
+        sel = self._tab_listbox.curselection()
+        if not sel:
+            return
+        idx = sel[0]
+        if idx == self._current_tab:
+            return
+        self._current_tab = idx
+        self._load_courses()
+
     def _load_courses(self) -> None:
         self._fetch_gen += 1
         self._status_var.set("加载中…")
@@ -169,8 +236,16 @@ class MainWindow(tk.Frame):
 
     def _fetch_courses(self) -> None:
         gen = self._fetch_gen
+        tab = self._tab_data[self._current_tab] if self._tab_data else {"class_no": None}
+        class_no = tab.get("class_no")
+        # 专区课程 API 尚未实现，待 HAR 确认后补充
+        if class_no is not None:
+            self.after(0, self._populate_tree, [])
+            label = tab.get("label", "该专区")
+            self.after(0, lambda: self._status_var.set(f"「{label}」课程列表功能待实现"))
+            return
         try:
-            courses = course_api.get_courses()
+            courses = course_api.get_openclass_courses()
             self.after(0, self._populate_tree, courses)
             # 并发拉取每门课的完成情况（最多 8 个并发请求）
             def _fetch_one(c: Course) -> tuple[Course, dict | None]:
