@@ -203,7 +203,6 @@ class MainWindow(tk.Frame):
         today = date.today().isoformat()
         try:
             classes = course_api.get_my_classes()
-            print("全部专区:", classes)
             valid = [c for c in classes if (c.get("endTime") or "") >= today]
             self.after(0, self._add_class_tabs, valid)
         except Exception:  # noqa: BLE001

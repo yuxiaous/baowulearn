@@ -45,6 +45,7 @@ def post(path: str, json: dict | None = None, **kwargs) -> dict:
 
 
 def get(path: str, **kwargs) -> dict:
+    """发起 GET 请求，自动拼接 BASE_URL，返回响应 JSON。"""
     url = BASE_URL + path
     resp = _session.get(url, **kwargs)
     resp.raise_for_status()

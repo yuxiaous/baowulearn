@@ -22,7 +22,7 @@ from core import storage
 
 
 class LoginWindow(tk.Toplevel):
-    def __init__(self, master: tk.Misc, on_login_success: Callable[[str], None]):
+    def __init__(self, master: tk.Misc, on_login_success: Callable[[], None]):
         super().__init__(master)
         self.title("宝武学习系统 — 登录")
         self.resizable(False, False)
@@ -152,15 +152,15 @@ class LoginWindow(tk.Toplevel):
 
     def _do_login(self, user: str, pwd: str, captcha: str, captcha_id: str) -> None:
         try:
-            token = auth.login(user, pwd, captcha, captcha_id)
-            self.after(0, self._handle_login_ok, token)
+            auth.login(user, pwd, captcha, captcha_id)
+            self.after(0, self._handle_login_success)
         except Exception as exc:  # noqa: BLE001
             self.after(0, self._handle_login_fail, str(exc))
 
-    def _handle_login_ok(self, token: str) -> None:
+    def _handle_login_success(self) -> None:
         storage.save_credentials(self._var_user.get().strip(), self._var_pwd.get())
         self.destroy()
-        self._on_success(token)
+        self._on_success()
 
     def _handle_login_fail(self, msg: str) -> None:
         messagebox.showerror("登录失败", msg, parent=self)

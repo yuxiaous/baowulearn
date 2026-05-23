@@ -67,5 +67,7 @@ def login(
         raise RuntimeError(f"登录失败: {msg}")
 
     token: str = data["data"]["accessToken"]
+    print("登录成功，Token:", token)
+
     client.set_token(token)
     return token
