@@ -31,7 +31,7 @@ def get_openclass_courses(
     }
     resp = client.post(url, json=payload)
     if not resp.get("isSuccess"):
-        raise RuntimeError(f"获取课程列表失败: {resp.get('message', resp)}")
+        raise RuntimeError(f"获取公开课课程列表失败: {resp.get('message', resp)}")
 
     records = resp["data"].get("records", [])
     return [
@@ -61,7 +61,7 @@ def get_my_classes(
     page_size: int = 10,
 ) -> list[OLClass]:
     """
-    获取我的专区课程班列表（专区标签页使用）。
+    获取专区列表（专区标签页使用）。
     """
     url = "/service/tms/ols/student/myClassPage"
     payload = {
@@ -80,7 +80,7 @@ def get_my_classes(
     }
     resp = client.post(url, json=payload)
     if not resp.get("isSuccess"):
-        return []
+        raise RuntimeError(f"获取专区列表失败: {resp.get('message', resp)}")
 
     records = resp["data"].get("records", [])
     return [
@@ -127,7 +127,7 @@ def get_onlineclass_courses(
     }
     resp = client.post(url, json=payload)
     if not resp.get("isSuccess"):
-        return []
+        raise RuntimeError(f"获取专区课程列表失败: {resp.get('message', resp)}")
 
     records = resp["data"].get("records", [])
     return [
@@ -151,7 +151,7 @@ def get_onlineclass_courses(
 # ── 获取课程详情 ──────────────────────────────────────────────────────────────
 
 
-def get_course_detail(course: Course) -> Course | None:
+def get_course_detail(course: Course) -> Course:
     """获取课程详情，包含学时等信息。"""
     url = "/service/tms/ols/onlineClassCourse/detailOnlineClassCourse"
     payload = {
@@ -161,7 +161,7 @@ def get_course_detail(course: Course) -> Course | None:
     }
     resp = client.post(url, json=payload)
     if not resp.get("isSuccess"):
-        return None
+        raise RuntimeError(f"获取课程详情失败: {resp.get('message', resp)}")
 
     data = resp["data"]
     course.course_detail = data
@@ -179,10 +179,24 @@ def get_course_detail(course: Course) -> Course | None:
     return course
 
 
-# ── 获取课程完成情况 ──────────────────────────────────────────────────────────────
+# ── 课程完成情况 ──────────────────────────────────────────────────────────────
 
 
-def get_course_finish_info(course: Course) -> Course | None:
+def save_compute_task_course_detail(course: Course) -> None:
+    """
+    触发服务端重新计算课程完成情况。
+    """
+    url = "/service/tms/ols/computeTask/saveComputeTask4StuCourseDetail"
+    payload = {
+        "classNo": course.class_no,
+        "courseNo": course.course_no,
+    }
+    resp = client.post(url, json=payload)
+    if not resp.get("isSuccess"):
+        raise RuntimeError(f"触发计算课程完成情况失败: {resp.get('message', resp)}")
+
+
+def get_course_finish_info(course: Course) -> Course:
     """查询课程完成情况。"""
     url = "/service/tms/ols/onlineClassCourse/finishInfo"
     payload = {
@@ -193,7 +207,7 @@ def get_course_finish_info(course: Course) -> Course | None:
     }
     resp = client.post(url, json=payload)
     if not resp.get("isSuccess"):
-        return None
+        raise RuntimeError(f"查询课程完成情况失败: {resp.get('message', resp)}")
 
     data = resp["data"]
     course.finish_info = data

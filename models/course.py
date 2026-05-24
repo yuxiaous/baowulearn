@@ -24,8 +24,8 @@ class Course:
     class_no: str = ""  # 专区编号
     class_name: str = ""  # 专区名称
     class_type: str = ""  # 专区类型（OCE 公开课, ZE0 学习专区）
-    center_code: str = None  # 中心编码
-    tenant_code: str = None  # 租户编码
+    center_code: str = None  # 中心编码 (C001)
+    tenant_code: str = None  # 租户编码 (BSTA)
     begin_time: str = None  # 学习开始时间（格式 "2024-01-01"）
     end_time: str = None  # 学习结束时间（格式 "2024-01-01"）
     learn_status: str = None  # 服务端状态：None 未知, "1"学习中, "2"已完成
