@@ -200,9 +200,7 @@ class HeartbeatWorker:
         except Exception:  # noqa: BLE001
             pass
         try:
-            info = course_api.get_course_finish_info(self._course)
-            if info is not None:
-                self._course.finish_info = info
+            course_api.get_course_finish_info(self._course)
         except Exception:  # noqa: BLE001
             pass
 

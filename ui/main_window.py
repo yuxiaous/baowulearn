@@ -12,6 +12,7 @@ from api import course as course_api
 from api import video as video_api
 from core.queue_manager import QueueManager
 from models.course import Course, HangStatus
+from models.olclass import OLClass
 from models.video import Video
 
 
@@ -22,7 +23,7 @@ class MainWindow(tk.Frame):
         self._on_logout = on_logout
         self._courses: list[Course] = []
         self._fetch_gen: int = 0  # 每次刷新递增，用于取消旧的 finishInfo 批量拉取
-        self._tab_data: list[dict] = []   # [{"label": str, "class_no": str|None}, ...]
+        self._tab_data: list[dict] = []  # [{"label": str, "class_no": str|None}, ...]
         self._current_tab: int = 0
 
         self._queue_mgr = QueueManager(
@@ -42,16 +43,18 @@ class MainWindow(tk.Frame):
         toolbar = ttk.Frame(self)
         toolbar.pack(fill="x", padx=10, pady=(8, 0))
 
-        ttk.Button(toolbar, text="刷新列表", command=self._load_courses).pack(side="left", padx=2)
-        ttk.Button(
-            toolbar, text="加入队列", command=self._add_to_queue
-        ).pack(side="left", padx=2)
-        ttk.Button(
-            toolbar, text="从队列移除", command=self._remove_from_queue
-        ).pack(side="left", padx=2)
-        ttk.Button(
-            toolbar, text="全部停止", command=self._stop_all
-        ).pack(side="left", padx=2)
+        ttk.Button(toolbar, text="刷新列表", command=self._load_courses).pack(
+            side="left", padx=2
+        )
+        ttk.Button(toolbar, text="加入队列", command=self._add_to_queue).pack(
+            side="left", padx=2
+        )
+        ttk.Button(toolbar, text="从队列移除", command=self._remove_from_queue).pack(
+            side="left", padx=2
+        )
+        ttk.Button(toolbar, text="全部停止", command=self._stop_all).pack(
+            side="left", padx=2
+        )
 
         if self._on_logout:
             ttk.Button(toolbar, text="退出", command=self._logout).pack(
@@ -61,8 +64,12 @@ class MainWindow(tk.Frame):
         # ── 底部状态栏（必须在 Treeview 之前 pack，才能占据底部整行）────────────
         self._status_var = tk.StringVar(value="就绪")
         status_bar = ttk.Label(
-            self, textvariable=self._status_var,
-            foreground="gray", anchor="w", relief="sunken", padding=(6, 2)
+            self,
+            textvariable=self._status_var,
+            foreground="gray",
+            anchor="w",
+            relief="sunken",
+            padding=(6, 2),
         )
         status_bar.pack(side="bottom", fill="x")
 
@@ -75,13 +82,19 @@ class MainWindow(tk.Frame):
         tabs_outer.pack(side="left", fill="y", padx=(10, 4))
         tabs_outer.pack_propagate(False)
 
-        ttk.Label(tabs_outer, text="课程分类", foreground="gray",
-                  font=("", 8)).pack(anchor="w", pady=(4, 2), padx=4)
+        # ttk.Label(tabs_outer, text="课程分类", foreground="gray", font=("", 8)).pack(
+        #     anchor="w", pady=(4, 2), padx=4
+        # )
 
         self._tab_listbox = tk.Listbox(
-            tabs_outer, selectmode="single", activestyle="none",
-            relief="solid", borderwidth=1, highlightthickness=0,
-            font=("", 9), cursor="hand2",
+            tabs_outer,
+            selectmode="single",
+            activestyle="none",
+            relief="solid",
+            borderwidth=1,
+            highlightthickness=0,
+            font=("", 9),
+            cursor="hand2",
         )
         self._tab_listbox.pack(fill="both", expand=True, pady=(0, 4))
         self._tab_listbox.bind("<<ListboxSelect>>", self._on_tab_select)
@@ -90,7 +103,7 @@ class MainWindow(tk.Frame):
         tree_frame = ttk.Frame(content)
         tree_frame.pack(side="left", fill="both", expand=True)
 
-        columns = ("class_name", "course_name", "status", "total", "watched", "score")
+        columns = ("course_name", "status", "total", "watched", "score")
         self._tree = ttk.Treeview(
             tree_frame,
             columns=columns,
@@ -99,24 +112,25 @@ class MainWindow(tk.Frame):
         )
 
         col_cfg = [
-            ("class_name",   "班级",      180, "w"),
-            ("course_name",  "课程名称",   280, "w"),
-            ("status",       "状态",        70, "center"),
-            ("total",        "学时",        60, "center"),
-            ("watched",      "已学时长",    140, "center"),
-            ("score",        "课程成绩",     80, "center"),
+            ("course_name", "课程名称", 280, "w"),
+            ("status", "状态", 70, "center"),
+            ("total", "学时", 60, "center"),
+            ("watched", "已学时长", 140, "center"),
+            ("score", "课程成绩", 80, "center"),
         ]
         for col_id, heading, width, anchor in col_cfg:
             self._tree.heading(col_id, text=heading)
-            self._tree.column(col_id, width=width, anchor=anchor, stretch=(col_id == "course_name"))
+            self._tree.column(
+                col_id, width=width, anchor=anchor, stretch=(col_id == "course_name")
+            )
 
         # 颜色标记
-        self._tree.tag_configure("hanging",   foreground="#0a7a0a")
-        self._tree.tag_configure("waiting",   foreground="#0055cc")
+        self._tree.tag_configure("hanging", foreground="#0a7a0a")
+        self._tree.tag_configure("waiting", foreground="#0055cc")
         self._tree.tag_configure("completed", foreground="gray")
 
         # 滚动条（hsb 先 pack 以确保占据底部）
-        vsb = ttk.Scrollbar(tree_frame, orient="vertical",   command=self._tree.yview)
+        vsb = ttk.Scrollbar(tree_frame, orient="vertical", command=self._tree.yview)
         hsb = ttk.Scrollbar(tree_frame, orient="horizontal", command=self._tree.xview)
         self._tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
 
@@ -198,14 +212,11 @@ class MainWindow(tk.Frame):
         except Exception:  # noqa: BLE001
             pass
 
-    def _add_class_tabs(self, classes: list[dict]) -> None:
+    def _add_class_tabs(self, classes: list[OLClass]) -> None:
         """将有效专区追加到标签页列表。"""
         for c in classes:
-            self._tab_data.append({
-                "label": c.get("olClassName", ""),
-                "class_no": c.get("olClassNo", ""),
-            })
-            self._tab_listbox.insert("end", c.get("olClassName", ""))
+            self._tab_data.append({"label": c.class_name, "class_no": c.class_no})
+            self._tab_listbox.insert("end", c.class_name)
 
     def _on_tab_select(self, _event=None) -> None:
         """切换标签页时重新加载对应课程列表。"""
@@ -225,22 +236,25 @@ class MainWindow(tk.Frame):
 
     def _fetch_courses(self) -> None:
         gen = self._fetch_gen
-        tab = self._tab_data[self._current_tab] if self._tab_data else {"class_no": None}
+        tab = (
+            self._tab_data[self._current_tab] if self._tab_data else {"class_no": None}
+        )
         class_no = tab.get("class_no")
-        # 专区课程 API 尚未实现，待 HAR 确认后补充
-        if class_no is not None:
-            self.after(0, self._populate_tree, [])
-            label = tab.get("label", "该专区")
-            self.after(0, lambda: self._status_var.set(f"「{label}」课程列表功能待实现"))
-            return
+
         try:
-            courses = course_api.get_openclass_courses()
+            if class_no is None:
+                courses = course_api.get_openclass_courses()
+            else:
+                courses = course_api.get_onlineclass_courses(class_no)
+
             self.after(0, self._populate_tree, courses)
+
             # 并发拉取每门课的完成情况（最多 8 个并发请求）
-            def _fetch_one(c: Course) -> tuple[Course, dict | None]:
+            def _fetch_one(c: Course) -> Course:
                 if self._fetch_gen != gen:
-                    return c, None
-                return c, video_api.get_finish_info(c)
+                    return c
+                course_api.get_course_finish_info(c)
+                return c
 
             with ThreadPoolExecutor(max_workers=8) as pool:
                 futures = {pool.submit(_fetch_one, c): c for c in courses}
@@ -248,10 +262,8 @@ class MainWindow(tk.Frame):
                     if self._fetch_gen != gen:
                         break
                     try:
-                        c, info = future.result()
-                        if info is not None:
-                            c.finish_info = info
-                            self.after(0, self._update_finish_info_cell, c)
+                        c = future.result()
+                        self.after(0, self._update_finish_info_cell, c)
                     except Exception:  # noqa: BLE001
                         pass
         except Exception as exc:  # noqa: BLE001
@@ -284,8 +296,13 @@ class MainWindow(tk.Frame):
                 "",
                 "end",
                 iid=c.course_guid,
-                values=(c.class_name, c.course_name, self._status_str(c), total_str,
-                        self._finish_info_str(c), self._score_str(c)),
+                values=(
+                    c.course_name,
+                    self._status_str(c),
+                    total_str,
+                    self._finish_info_str(c),
+                    self._score_str(c),
+                ),
                 tags=(tag,) if tag else (),
             )
 
@@ -304,7 +321,9 @@ class MainWindow(tk.Frame):
             return
         for c in courses:
             if c.is_completed:
-                messagebox.showwarning("提示", f"《{c.course_name}》已完成，无需挂机", parent=self)
+                messagebox.showwarning(
+                    "提示", f"《{c.course_name}》已完成，无需挂机", parent=self
+                )
                 continue
             self._queue_mgr.enqueue(c)
 
@@ -327,7 +346,9 @@ class MainWindow(tk.Frame):
 
     # ── 挂机回调（在主线程执行）──────────────────────────────────────────────────
 
-    def _on_hang_progress(self, course: Course, video: Video, elapsed: int, total: int) -> None:
+    def _on_hang_progress(
+        self, course: Course, video: Video, elapsed: int, total: int
+    ) -> None:
         """每秒刷新状态栏进度；如果 finish_info 已更新则同步刷新行内容。"""
         pct = elapsed * 100 // total if total else 0
         self._status_var.set(
@@ -346,7 +367,9 @@ class MainWindow(tk.Frame):
         try:
             if self._tree.exists(course.course_guid):
                 self._tree.set(course.course_guid, "status", self._status_str(course))
-                self._tree.set(course.course_guid, "watched", self._finish_info_str(course))
+                self._tree.set(
+                    course.course_guid, "watched", self._finish_info_str(course)
+                )
                 self._tree.set(course.course_guid, "score", self._score_str(course))
                 # 同步更新行颜色标签
                 if course.hang_status == HangStatus.HANGING:

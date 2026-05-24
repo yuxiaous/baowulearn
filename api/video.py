@@ -5,9 +5,6 @@
   get_course_videos → init_learn_record → start_video
   → send_heartbeat / mark_progress (循环)
   → complete_video → end_video
-
-辅助查询：
-  get_finish_info    — 获取课程完成情况（学习时长进度、得分等）
 """
 
 from __future__ import annotations
