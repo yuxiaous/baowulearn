@@ -113,7 +113,7 @@ class MainWindow(tk.Frame):
         # ── 中间课程 ─────────────────────────────────────────────────
         course_frame = ttk.Frame(paned)
 
-        course_columns = ("name", "status", "total", "watched", "score")
+        course_columns = ("name", "total", "watched", "score", "status")
         self._course_tree = ttk.Treeview(
             course_frame,
             columns=course_columns,
@@ -123,10 +123,10 @@ class MainWindow(tk.Frame):
 
         col_cfg = [
             ("name", "课程名称", 280, "w"),
-            ("status", "状态", 70, "center"),
             ("total", "学时", 60, "center"),
             ("watched", "已学时长", 140, "center"),
             ("score", "课程成绩", 80, "center"),
+            ("status", "状态", 70, "center"),
         ]
         for col_id, heading, width, anchor in col_cfg:
             self._course_tree.heading(col_id, text=heading)
@@ -346,10 +346,10 @@ class MainWindow(tk.Frame):
                 iid=c.course_guid,
                 values=(
                     c.course_name,
-                    self._status_str(c),
                     total_str,
                     self._finish_info_str(c),
                     self._score_str(c),
+                    self._status_str(c),
                 ),
                 tags=(tag,) if tag else (),
             )
