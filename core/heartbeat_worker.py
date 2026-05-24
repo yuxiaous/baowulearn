@@ -37,6 +37,7 @@ class HeartbeatWorker:
         on_video_complete: Callable[[Course, Video], None],
         on_course_complete: Callable[[Course], None],
         on_error: Callable[[Course, str], None],
+        on_videos_loaded: Callable[[Course, list[Video]], None] | None = None,
     ):
         self._course = course
         self._on_video_start = on_video_start
@@ -44,6 +45,7 @@ class HeartbeatWorker:
         self._on_video_complete = on_video_complete
         self._on_course_complete = on_course_complete
         self._on_error = on_error
+        self._on_videos_loaded = on_videos_loaded
 
         self._page_id = str(uuid.uuid4())
         self._heartbeat_interval = 60  # 秒，默认心跳间隔（实际以服务端返回为准）
@@ -74,6 +76,15 @@ class HeartbeatWorker:
             if not videos:
                 self._on_error(course, "课程没有可用视频")
                 return
+
+            for video in videos:
+                try:
+                    video.play_progress = video_api.get_play_progress(course, video)
+                except Exception:  # noqa: BLE001
+                    pass
+
+            if self._on_videos_loaded:
+                self._on_videos_loaded(course, videos)
 
             self._heartbeat_interval = video_api.get_heartbeat_interval()
 

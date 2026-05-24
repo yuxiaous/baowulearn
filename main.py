@@ -22,7 +22,7 @@ def main() -> None:
 
     def open_main_window() -> None:
         root.title("宝武学习系统")
-        root.geometry("780x500")
+        root.geometry("1136x640")
         root.minsize(620, 380)
 
         def on_logout() -> None:
@@ -31,12 +31,12 @@ def main() -> None:
             for widget in root.winfo_children():
                 widget.destroy()
             root.withdraw()
-            open_login_dindow()
+            open_login_window()
 
         MainWindow(root, on_logout=on_logout)
         root.deiconify()
 
-    def open_login_dindow() -> None:
+    def open_login_window() -> None:
         def on_close() -> None:
             if not client.get_token():
                 root.quit()
@@ -51,7 +51,7 @@ def main() -> None:
         client.set_token(config.TOKEN.strip())
         open_main_window()
     else:
-        open_login_dindow()
+        open_login_window()
 
     root.mainloop()
 

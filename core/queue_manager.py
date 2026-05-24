@@ -32,6 +32,9 @@ class QueueManager:
         on_state_change: Callable[[], None],
         on_progress: Callable[[Course, Video, int, int], None],
         on_error: Callable[[str], None],
+        on_video_start: Callable[[Course, Video], None] | None = None,
+        on_video_complete: Callable[[Course, Video], None] | None = None,
+        on_videos_loaded: Callable[[Course, list[Video]], None] | None = None,
     ):
         self._queue: deque[Course] = deque()
         self._worker: HeartbeatWorker | None = None
@@ -41,6 +44,9 @@ class QueueManager:
         self._on_state_change = on_state_change
         self._on_progress = on_progress
         self._on_error = on_error
+        self._on_video_start_cb = on_video_start
+        self._on_video_complete_cb = on_video_complete
+        self._on_videos_loaded_cb = on_videos_loaded
 
     # ── 公共接口 ───────────────────────────────────────────────────────────────
 
@@ -109,6 +115,10 @@ class QueueManager:
                 lambda: self._on_course_complete(c)
             ),
             on_error=lambda c, msg: self._schedule(lambda: self._on_error_cb(c, msg)),
+            on_videos_loaded=(
+                (lambda c, vs: self._schedule(lambda: self._on_videos_loaded_cb(c, vs)))
+                if self._on_videos_loaded_cb else None
+            ),
         )
         self._worker = worker
         worker.start()
@@ -117,9 +127,13 @@ class QueueManager:
     # ── 事件处理（均在主线程执行）───────────────────────────────────────────────
 
     def _on_video_start(self, course: Course, video: Video) -> None:
+        if self._on_video_start_cb:
+            self._on_video_start_cb(course, video)
         self._on_state_change()
 
     def _on_video_complete(self, course: Course, video: Video) -> None:
+        if self._on_video_complete_cb:
+            self._on_video_complete_cb(course, video)
         self._on_state_change()
 
     def _on_course_complete(self, course: Course) -> None:
