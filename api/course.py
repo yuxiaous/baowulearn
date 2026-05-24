@@ -6,6 +6,8 @@ from api import client
 from models.course import Course
 from models.olclass import OLClass
 
+# ── 获取公开课列表 ──────────────────────────────────────────────────────────────
+
 
 def get_openclass_courses(
     search_type: str = "1",  # "1" 全部, "2" 学习中, "3" 已完成
@@ -34,20 +36,24 @@ def get_openclass_courses(
     records = resp["data"].get("records", [])
     return [
         Course(
-            course_no=str(r.get("courseNo", "")),
-            course_name=str(r.get("courseName", "")),
-            class_no=str(r.get("olClassNo", "")),
-            class_name=str(r.get("olClassName", "")),
-            class_type=str(r.get("olClassType", "")),
-            center_code=str(r.get("centerCode", None)),
-            tenant_code=str(r.get("tenantCode", None)),
-            learn_status=str(r.get("learnStatus", None)),
-            course_hours=float(r.get("courseHours", 0.0)),
-            begin_time=str(r.get("courseBeginTime", None)),
-            end_time=str(r.get("courseEndTime", None)),
+            course_guid=str(record.get("courseGuid", "")),
+            course_no=str(record.get("courseNo", "")),
+            course_name=str(record.get("courseName", "")),
+            class_no=str(record.get("olClassNo", "")),
+            class_name=str(record.get("olClassName", "")),
+            class_type=str(record.get("olClassType", "")),
+            center_code=str(record.get("centerCode", None)),
+            tenant_code=str(record.get("tenantCode", None)),
+            learn_status=str(record.get("learnStatus", None)),
+            course_hours=float(record.get("courseHours", 0.0)),
+            begin_time=str(record.get("courseBeginTime", None)),
+            end_time=str(record.get("courseEndTime", None)),
         )
-        for r in records
+        for record in records
     ]
+
+
+# ── 获取专区列表 ──────────────────────────────────────────────────────────────
 
 
 def get_my_classes(
@@ -79,18 +85,21 @@ def get_my_classes(
     records = resp["data"].get("records", [])
     return [
         OLClass(
-            class_guid=str(r.get("guid", "")),
-            class_no=str(r.get("olClassNo", "")),
-            class_name=str(r.get("olClassName", "")),
-            class_type=str(r.get("olClassType", "")),
-            begin_time=str(r.get("beginTime", None)),
-            end_time=str(r.get("endTime", None)),
-            center_code=str(r.get("centerCode", "")),
-            tenant_code=str(r.get("tenantCode", "")),
-            course_num=int(r.get("courseNum", 0)),
+            class_guid=str(record.get("guid", "")),
+            class_no=str(record.get("olClassNo", "")),
+            class_name=str(record.get("olClassName", "")),
+            class_type=str(record.get("olClassType", "")),
+            begin_time=str(record.get("beginTime", None)),
+            end_time=str(record.get("endTime", None)),
+            center_code=str(record.get("centerCode", "")),
+            tenant_code=str(record.get("tenantCode", "")),
+            course_num=int(record.get("courseNum", 0)),
         )
-        for r in records
+        for record in records
     ]
+
+
+# ── 获取专区课程列表 ──────────────────────────────────────────────────────────────
 
 
 def get_onlineclass_courses(
@@ -123,17 +132,76 @@ def get_onlineclass_courses(
     records = resp["data"].get("records", [])
     return [
         Course(
-            course_no=str(r.get("courseNo", "")),
-            course_name=str(r.get("courseName", "")),
-            class_no=str(r.get("olClassNo", "")),
-            class_name=str(r.get("olClassName", "")),
-            class_type=str(r.get("olClassType", "")),
-            center_code=str(r.get("centerCode", None)),
-            # tenant_code=str(r.get("tenantCode", None)),
-            learn_status=str(r.get("learnStatus", None)),
-            # course_hours=float(r.get("courseHours", 0.0)),
-            begin_time=str(r.get("beginTime", None)),
-            end_time=str(r.get("endTime", None)),
+            course_guid=str(record.get("guid", "")),
+            course_no=str(record.get("courseNo", "")),
+            course_name=str(record.get("courseName", "")),
+            class_no=str(record.get("olClassNo", "")),
+            class_name=str(record.get("olClassName", "")),
+            class_type=str(record.get("olClassType", "")),
+            center_code=str(record.get("centerCode", None)),
+            tenant_code="BSTA",
+            learn_status=str(record.get("learnStatus", None)),
+            begin_time=str(record.get("beginTime", None)),
+            end_time=str(record.get("endTime", None)),
         )
-        for r in records
+        for record in records
     ]
+
+
+# ── 获取课程详情 ──────────────────────────────────────────────────────────────
+
+
+def get_course_detail(course: Course) -> Course | None:
+    """获取课程详情，包含学时等信息。"""
+    url = "/service/tms/ols/onlineClassCourse/detailOnlineClassCourse"
+    payload = {
+        "centerCode": course.center_code,
+        "guid": course.course_guid,
+        "stuClient": True,
+    }
+    resp = client.post(url, json=payload)
+    if not resp.get("isSuccess"):
+        return None
+
+    data = resp["data"]
+    course.course_detail = data
+    course.course_guid = str(data.get("guid", ""))
+    course.course_no = str(data.get("courseNo", ""))
+    course.course_name = str(data.get("courseName", ""))
+    course.class_no = str(data.get("olClassNo", ""))
+    course.class_name = str(data.get("olClassName", ""))
+    course.class_type = str(data.get("olClassType", ""))
+    course.center_code = str(data.get("centerCode", None))
+    course.tenant_code = str(data.get("tenantCode", None))
+    course.course_hours = float(data.get("courseHours", 0.0))
+    course.begin_time = str(data.get("beginTime", None))
+    course.end_time = str(data.get("endTime", None))
+    return course
+
+
+# ── 获取课程完成情况 ──────────────────────────────────────────────────────────────
+
+
+def get_course_finish_info(course: Course) -> Course | None:
+    """查询课程完成情况。"""
+    url = "/service/tms/ols/onlineClassCourse/finishInfo"
+    payload = {
+        "centerCode": course.center_code,
+        "courseNo": course.course_no,
+        "olClassNo": course.class_no,
+        "tenantCode": course.tenant_code,
+    }
+    resp = client.post(url, json=payload)
+    if not resp.get("isSuccess"):
+        return None
+
+    data = resp["data"]
+    course.finish_info = data
+    course.course_score = float(data.get("learnScore", 0.0))
+
+    for detail in data.get("details", []):
+        if detail.get("attributeCode") == "CE002":  # 学习时长
+            course.course_duration = float(detail.get("predValue", 0.0))
+            course.course_finished = float(detail.get("finishValue", 0.0))
+
+    return course

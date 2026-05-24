@@ -17,8 +17,8 @@ from api import client
 from models.course import Course
 from models.video import Video
 
-
 # ── 辅助函数 ──────────────────────────────────────────────────────────────────
+
 
 def secs_to_hhmmss(secs: int) -> str:
     """秒数转 HH:MM:SS 字符串。"""
@@ -30,16 +30,23 @@ def secs_to_hhmmss(secs: int) -> str:
 
 # ── 视频列表 ──────────────────────────────────────────────────────────────────
 
-def get_course_videos(course_no: str, center_code: str) -> list[Video]:
+
+def get_course_videos(
+    course_no: str,
+    center_code: str,
+) -> list[Video]:
     """
     获取课程的视频列表（通过大纲接口）。
 
     只返回 contentType=="1"（视频）且 status=="1"（有效）的条目。
     """
-    resp = client.post(
-        "/service/tms/rls/courseOutline/queryCourseOutlineContentTreeListSimple",
-        json={"centerCode": center_code, "courseNo": course_no, "isAppendPre": "1"},
-    )
+    url = "/service/tms/rls/courseOutline/queryCourseOutlineContentTreeListSimple"
+    payload = {
+        "centerCode": center_code,
+        "courseNo": course_no,
+        "isAppendPre": "1",
+    }
+    resp = client.post(url, json=payload)
     if not resp.get("isSuccess"):
         raise RuntimeError(f"获取视频列表失败: {resp.get('message', resp)}")
 
@@ -47,13 +54,17 @@ def get_course_videos(course_no: str, center_code: str) -> list[Video]:
     idx = 0
     for chapter in resp.get("data", []):
         for item in chapter.get("content", []):
-            if str(item.get("contentType")) == "1" and str(item.get("status", "1")) == "1":
+            if (
+                str(item.get("contentType")) == "1"
+                and str(item.get("status", "1")) == "1"
+            ):
                 videos.append(Video.from_outline_item(item, index=idx))
                 idx += 1
     return videos
 
 
 # ── 已播放进度查询 ───────────────────────────────────────────────────────────────
+
 
 def get_play_progress(course: Course, video: Video) -> int:
     """
@@ -67,7 +78,7 @@ def get_play_progress(course: Course, video: Video) -> int:
             json={
                 "cataNo": video.cata_no,
                 "courseNo": course.course_no,
-                "olClassNo": course.class_guid,
+                "olClassNo": course.class_no,
                 "wareId": video.ware_id,
                 "wareType": video.ware_type,
             },
@@ -85,39 +96,7 @@ def get_play_progress(course: Course, video: Video) -> int:
     return 0
 
 
-# ── 课程完成情况查询 ──────────────────────────────────────────────────────────────
-
-def get_finish_info(course: Course) -> dict | None:
-    """
-    查询课程完成情况。
-
-    返回 data 字典，包含：
-      learnScore   — 已获得学分（字符串）
-      learnStatus  — "0"未学, "1"学习中, "2"已完成
-      details[]    — 各考核维度列表，通常含"学习时长"条目：
-        attributeName  — "学习时长"
-        finishValue    — 已完成值（分钟，字符串浮点）
-        predValue      — 要求值（分钟，字符串整数）
-        percentage     — 完成百分比（字符串整数）
-        attributeUnit  — "分钟"
-
-    出错时返回 None。
-    """
-    try:
-        resp = client.post(
-            "/service/tms/ols/onlineClassCourse/finishInfo",
-            json={
-                "centerCode": course.center_code,
-                "courseNo": course.course_no,
-                "olClassNo": course.class_guid,
-                "tenantCode": course.tenant_code,
-            },
-        )
-        if resp.get("isSuccess"):
-            return resp.get("data")
-    except Exception:  # noqa: BLE001
-        pass
-    return None
+# ── 课程完成情况 ──────────────────────────────────────────────────────────────
 
 
 def save_compute_task_course_detail(course: Course) -> None:
@@ -130,13 +109,14 @@ def save_compute_task_course_detail(course: Course) -> None:
     try:
         client.post(
             "/service/tms/ols/computeTask/saveComputeTask4StuCourseDetail",
-            json={"classNo": course.class_guid, "courseNo": course.course_no},
+            json={"classNo": course.class_no, "courseNo": course.course_no},
         )
     except Exception:  # noqa: BLE001
         pass
 
 
 # ── 学习记录初始化 ─────────────────────────────────────────────────────────────
+
 
 def init_learn_record(course_no: str, ol_class_no: str, page_id: str) -> None:
     """初始化学习记录，每次开始观看课程时调用一次。"""
@@ -147,6 +127,7 @@ def init_learn_record(course_no: str, ol_class_no: str, page_id: str) -> None:
 
 
 # ── 视频播放控制 ──────────────────────────────────────────────────────────────
+
 
 def start_video(course: Course, video: Video, begin_secs: int = 0) -> None:
     """发送开始播放信号（operateType=1, videoStatus=1）。
@@ -159,7 +140,7 @@ def start_video(course: Course, video: Video, begin_secs: int = 0) -> None:
             "cataNo": video.cata_no,
             "classCourseCenterCode": course.center_code,
             "courseNo": course.course_no,
-            "olClassNo": course.class_guid,
+            "olClassNo": course.class_no,
             "operateType": "1",
             "videoBeginTime": secs_to_hhmmss(begin_secs),
             "videoSpeed": 1,
@@ -178,7 +159,7 @@ def end_video(course: Course, video: Video, end_secs: int) -> None:
             "cataNo": video.cata_no,
             "classCourseCenterCode": course.center_code,
             "courseNo": course.course_no,
-            "olClassNo": course.class_guid,
+            "olClassNo": course.class_no,
             "operateType": "2",
             "videoBeginTime": secs_to_hhmmss(end_secs),
             "videoSpeed": 1,
@@ -190,6 +171,7 @@ def end_video(course: Course, video: Video, end_secs: int) -> None:
 
 
 # ── 心跳 ──────────────────────────────────────────────────────────────────────
+
 
 def send_heartbeat(
     course: Course,
@@ -214,7 +196,7 @@ def send_heartbeat(
             "isBlur": "0",
             "learnRealTime": learn_real_time,
             "learnTime": learn_real_time,
-            "olClassNo": course.class_guid,
+            "olClassNo": course.class_no,
             "pageId": page_id,
             "status": "1",
             "videoSpeed": 1,
@@ -225,6 +207,7 @@ def send_heartbeat(
 
 
 # ── 进度打卡 ──────────────────────────────────────────────────────────────────
+
 
 def mark_progress(
     course: Course,
@@ -241,7 +224,7 @@ def mark_progress(
             "courseNo": course.course_no,
             "curPlayTime": ts,
             "markeTimePoint": ts,
-            "olClassNo": course.class_guid,
+            "olClassNo": course.class_no,
             "pageId": page_id,
             "wareId": video.ware_id,
             "wareType": video.ware_type,
@@ -250,6 +233,7 @@ def mark_progress(
 
 
 # ── 完成视频 ──────────────────────────────────────────────────────────────────
+
 
 def complete_video(ol_class_no: str, course_no: str) -> None:
     """发送视频完成信号（saveComputeTask4AfterVideoPlayed）。"""
