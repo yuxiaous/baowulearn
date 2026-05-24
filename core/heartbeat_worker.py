@@ -99,6 +99,10 @@ class HeartbeatWorker:
 
                 self._watch_video(video)
 
+            # 全部视频结束后，检查是否需要补播以达到课程总时长
+            if not self._stop_event.is_set():
+                self._topup_if_needed(videos)
+
         except Exception as exc:  # noqa: BLE001
             self._on_error(course, str(exc))
             return
@@ -108,15 +112,17 @@ class HeartbeatWorker:
 
     # ── 单视频观看流程 ─────────────────────────────────────────────────────────
 
-    def _watch_video(self, video: Video) -> None:
+    def _watch_video(self, video: Video, start_override: int | None = None) -> None:
         course = self._course
 
-        start_secs = video_api.get_play_progress(course, video)
-
-        # 已到达或超过视频末尾 → 该视频已完成，跳过
-        if start_secs >= video.duration:
-            self._on_video_complete(course, video)
-            return
+        if start_override is not None:
+            start_secs = start_override
+        else:
+            start_secs = video_api.get_play_progress(course, video)
+            # 已到达或超过视频末尾 → 该视频已完成，跳过
+            if start_secs >= video.duration:
+                self._on_video_complete(course, video)
+                return
 
         self._on_video_start(course, video)
 
@@ -203,6 +209,25 @@ class HeartbeatWorker:
         self._on_video_complete(course, video)
 
     # ── 容错调用 ──────────────────────────────────────────────────────────────
+
+    def _topup_if_needed(self, videos: list[Video]) -> None:
+        """全部视频完成后，若课程完成时间仍未达总时长，从最后一个视频末尾倒退补播。"""
+        course = self._course
+        self._refresh_finish_info()  # 取最新数据
+
+        if course.course_duration <= 0:
+            return
+        if course.course_finished >= course.course_duration:
+            return
+        if self._stop_event.is_set():
+            return
+
+        last_video = videos[-1]
+        gap_secs = int((course.course_duration - course.course_finished) * 60)
+        # 多倒退 120 秒，弥补本地与服务器的计时误差
+        rewind_secs = gap_secs + 120
+        start_from = max(0, last_video.duration - rewind_secs)
+        self._watch_video(last_video, start_override=start_from)
 
     def _refresh_finish_info(self) -> None:
         """触发服务端重算。"""

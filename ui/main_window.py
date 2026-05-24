@@ -178,20 +178,13 @@ class MainWindow(QMainWindow):
     # ── 数据加载 ──────────────────────────────────────────────────────────────────────
 
     @staticmethod
-    def _is_duration_completed(course: Course) -> bool:
-        """基于已学时长判断是否完成。有时长数据时用它，否则回退到服务端 learnStatus。"""
-        if course.course_duration > 0:
-            return course.course_finished >= course.course_duration
-        return course.is_completed
-
-    @staticmethod
     def _status_str(course: Course) -> str:
-        """状态列显示文字：以学时完成情况为准。"""
+        """状态列显示文字。"""
         if course.hang_status == HangStatus.HANGING:
             return "挂机中"
         if course.hang_status == HangStatus.WAITING:
             return "等待中"
-        return "已完成" if MainWindow._is_duration_completed(course) else "未完成"
+        return "已完成" if course.is_completed else "未完成"
 
     @staticmethod
     def _score_str(course: Course) -> str:
@@ -213,7 +206,7 @@ class MainWindow(QMainWindow):
             return _COLOR_HANGING
         if course.hang_status == HangStatus.WAITING:
             return _COLOR_WAITING
-        if MainWindow._is_duration_completed(course):
+        if course.is_completed:
             return _COLOR_COMPLETED
         return None
 
@@ -379,7 +372,12 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "提示", "请先选择课程")
             return
         for c in courses:
-            if self._is_duration_completed(c):
+            already_done = (
+                c.course_finished >= c.course_duration
+                if c.course_duration > 0
+                else c.is_completed
+            )
+            if already_done:
                 QMessageBox.warning(
                     self, "提示", f"《{c.course_name}》已完成，无需挂机"
                 )
