@@ -24,6 +24,6 @@ class Video:
     duration: int  # 视频时长（秒）
     mark_points: list[int] = field(default_factory=list)  # 进度打卡点（秒）
 
-    learned_status: str = None  # 服务端状态：None 未知, "0"学习中, "1"已完成
+    learned_status: str = None  # 服务端状态：None 未学习, "0"学习中, "1"已完成
 
     index: int = 0  # 在课程中的序号（0起）

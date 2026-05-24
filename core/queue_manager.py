@@ -96,10 +96,18 @@ class QueueManager:
 
         worker = HeartbeatWorker(
             course=course,
-            on_video_start=lambda c, v: self._schedule(lambda: self._on_video_start(c, v)),
-            on_progress=lambda c, v, e, t: self._schedule(lambda: self._on_progress(c, v, e, t)),
-            on_video_complete=lambda c, v: self._schedule(lambda: self._on_video_complete(c, v)),
-            on_course_complete=lambda c: self._schedule(lambda: self._on_course_complete(c)),
+            on_video_start=lambda c, v: self._schedule(
+                lambda: self._on_video_start(c, v)
+            ),
+            on_progress=lambda c, v, e, t: self._schedule(
+                lambda: self._on_progress(c, v, e, t)
+            ),
+            on_video_complete=lambda c, v: self._schedule(
+                lambda: self._on_video_complete(c, v)
+            ),
+            on_course_complete=lambda c: self._schedule(
+                lambda: self._on_course_complete(c)
+            ),
             on_error=lambda c, msg: self._schedule(lambda: self._on_error_cb(c, msg)),
         )
         self._worker = worker

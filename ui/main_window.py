@@ -167,7 +167,6 @@ class MainWindow(tk.Frame):
         """将 course.finish_info 格式化为显示字符串。
 
         直接反映服务端返回的数据，如 "2.5/151分钟 (100%)";
-        无数据时回落到 near_learn_hours 的秒数展示。
         """
         info = course.finish_info
         if info:
@@ -180,12 +179,6 @@ class MainWindow(tk.Frame):
                     return f"{finish_f:.2f}/{pred}{unit}"
                 except ValueError:
                     pass
-        sec = course.near_learn_hours
-        if sec >= 3600:
-            return f"{sec / 3600:.1f}h"
-        if sec >= 60:
-            return f"{sec // 60}m"
-        return f"{sec}s" if sec else "-"
 
     def _load_tabs(self) -> None:
         """初始化标签页：先放公开课，再异步追加有效期内的专区。"""
@@ -198,13 +191,10 @@ class MainWindow(tk.Frame):
         threading.Thread(target=self._fetch_tabs, daemon=True).start()
 
     def _fetch_tabs(self) -> None:
-        """后台拉取专区列表，过滤出有效期内的 ZE0 类型专区，追加到标签栏。"""
-        from datetime import date
-        today = date.today().isoformat()
+        """后台拉取专区列表，追加到标签栏。"""
         try:
             classes = course_api.get_my_classes()
-            valid = [c for c in classes if (c.get("endTime") or "") >= today]
-            self.after(0, self._add_class_tabs, valid)
+            self.after(0, self._add_class_tabs, classes)
         except Exception:  # noqa: BLE001
             pass
 

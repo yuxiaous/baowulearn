@@ -23,7 +23,7 @@ def set_token(token: str) -> None:
     """登录成功后调用，将 token 写入后续请求头。"""
     global _access_token
     _access_token = token
-    _session.headers.update({"token": token})
+    _session.headers.update({"Token": token})
 
 
 def get_token() -> str | None:
@@ -33,7 +33,7 @@ def get_token() -> str | None:
 def clear_token() -> None:
     global _access_token
     _access_token = None
-    _session.headers.pop("token", None)
+    _session.headers.pop("Token", None)
 
 
 def post(path: str, json: dict | None = None, **kwargs) -> dict:

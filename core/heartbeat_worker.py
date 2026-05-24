@@ -21,6 +21,7 @@ import uuid
 from typing import Callable
 
 from api import video as video_api
+from api import course as course_api
 from models.course import Course
 from models.video import Video
 
@@ -44,8 +45,15 @@ class HeartbeatWorker:
         self._on_course_complete = on_course_complete
         self._on_error = on_error
 
+        self._page_id = str(uuid.uuid4())
+        self._heartbeat_interval = 60  # 秒，默认心跳间隔（实际以服务端返回为准）
+
         self._stop_event = threading.Event()
-        self._thread = threading.Thread(target=self._run, daemon=True, name=f"HBW-{course.course_no}")
+        self._thread = threading.Thread(
+            target=self._run,
+            daemon=True,
+            name=f"HBW-{course.course_no}",
+        )
 
     def start(self) -> None:
         self._thread.start()
@@ -62,18 +70,23 @@ class HeartbeatWorker:
     def _run(self) -> None:
         course = self._course
         try:
-            videos = video_api.get_course_videos(course.course_no, course.center_code)
+            videos = video_api.get_course_videos(course)
             if not videos:
                 self._on_error(course, "课程没有可用视频")
                 return
 
-            page_id = str(uuid.uuid4())
-            video_api.init_learn_record(course.course_no, course.class_guid, page_id)
+            self._heartbeat_interval = video_api.get_heartbeat_interval()
+
+            video_api.init_learn_record(course, self._page_id)
 
             for video in videos:
                 if self._stop_event.is_set():
                     break
-                self._watch_video(video, page_id)
+
+                if video.learned_status == "1":
+                    continue
+
+                self._watch_video(video)
 
         except Exception as exc:  # noqa: BLE001
             self._on_error(course, str(exc))
@@ -84,10 +97,9 @@ class HeartbeatWorker:
 
     # ── 单视频观看流程 ─────────────────────────────────────────────────────────
 
-    def _watch_video(self, video: Video, page_id: str) -> None:
+    def _watch_video(self, video: Video) -> None:
         course = self._course
 
-        # ── 查询已播放进度，决定续播起点 ──────────────────────────────────────
         start_secs = video_api.get_play_progress(course, video)
 
         # 已到达或超过视频末尾 → 该视频已完成，跳过
@@ -114,7 +126,14 @@ class HeartbeatWorker:
                 # 停止前补发一次心跳，记录已观看时长
                 delta = elapsed - last_heartbeat
                 if delta > 0:
-                    self._try_call(video_api.send_heartbeat, course, video, page_id, elapsed, delta)
+                    self._try_call(
+                        video_api.send_heartbeat,
+                        course,
+                        video,
+                        self._page_id,
+                        elapsed,
+                        delta,
+                    )
                 return
 
             time.sleep(1)
@@ -122,14 +141,24 @@ class HeartbeatWorker:
 
             # 进度打卡：命中 mark_points 时发送
             while next_mark_idx < len(marks) and marks[next_mark_idx] <= elapsed:
-                self._try_call(video_api.mark_progress, course, video, page_id, marks[next_mark_idx])
+                self._try_call(
+                    video_api.mark_progress,
+                    course,
+                    video,
+                    self._page_id,
+                    marks[next_mark_idx],
+                )
                 next_mark_idx += 1
 
             # 每 60 秒发一次心跳，然后触发服务端重算完成情况
-            if elapsed - last_heartbeat >= 60:
+            if elapsed - last_heartbeat >= self._heartbeat_interval:
                 self._try_call(
                     video_api.send_heartbeat,
-                    course, video, page_id, elapsed, elapsed - last_heartbeat,
+                    course,
+                    video,
+                    self._page_id,
+                    elapsed,
+                    elapsed - last_heartbeat,
                 )
                 last_heartbeat = elapsed
                 self._refresh_finish_info()
@@ -144,11 +173,15 @@ class HeartbeatWorker:
         if remaining > 0:
             self._try_call(
                 video_api.send_heartbeat,
-                course, video, page_id, video.duration, remaining,
+                course,
+                video,
+                self._page_id,
+                video.duration,
+                remaining,
             )
 
         # 完成信号
-        self._try_call(video_api.complete_video, course.class_guid, course.course_no)
+        self._try_call(video_api.complete_video, course.class_no, course.course_no)
 
         # 结束播放信号
         self._try_call(video_api.end_video, course, video, video.duration)
@@ -163,11 +196,11 @@ class HeartbeatWorker:
     def _refresh_finish_info(self) -> None:
         """触发服务端重算，然后查询 finishInfo 更新到 course.finish_info。"""
         try:
-            video_api.save_compute_task_course_detail(self._course)
+            course_api.save_compute_task_course_detail(self._course)
         except Exception:  # noqa: BLE001
             pass
         try:
-            info = video_api.get_finish_info(self._course)
+            info = course_api.get_course_finish_info(self._course)
             if info is not None:
                 self._course.finish_info = info
         except Exception:  # noqa: BLE001
@@ -186,4 +219,8 @@ class HeartbeatWorker:
                     time.sleep(3)
         # 全部重试失败：打印到 stderr，不中断流程
         import sys
-        print(f"[HeartbeatWorker] API 调用失败（已重试 {retries} 次）: {last_exc}", file=sys.stderr)
+
+        print(
+            f"[HeartbeatWorker] API 调用失败（已重试 {retries} 次）: {last_exc}",
+            file=sys.stderr,
+        )

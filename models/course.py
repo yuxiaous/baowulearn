@@ -33,16 +33,15 @@ class Course:
     course_score: float = 0.0  # 课程成绩
     course_duration: float = 0  # 课程总时长（分钟）
     course_finished: float = 0  # 课程完成时间 (分钟)
-    
-
-    # 本地挂机状态（不来自服务端）
-    hang_status: HangStatus = field(default=HangStatus.IDLE, compare=False)
 
     # 课程详情（原始接口返回的全部字段）
     course_detail: dict | None = field(default=None, compare=False)
 
     # 完成情况（原始接口返回的全部字段）
     finish_info: dict | None = field(default=None, compare=False)
+
+    # 本地挂机状态（不来自服务端）
+    hang_status: HangStatus = field(default=HangStatus.IDLE, compare=False)
 
     # ── 派生属性 ────────────────────────────────────────────────────────────────
 

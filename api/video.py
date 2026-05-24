@@ -266,3 +266,21 @@ def complete_video(course: Course) -> None:
     resp = client.post(url, json=payload)
     if not resp.get("isSuccess"):
         raise RuntimeError(f"完成视频失败: {resp.get('message', resp)}")
+
+
+# ── 心跳频率 ──────────────────────────────────────────────────────────────────
+
+
+def get_heartbeat_interval() -> int:
+    """获取心跳发送的时间间隔（秒）。"""
+    url = "/service/ss/properties/queryPropValue"
+    payload = {
+        "propertiesKey": "heartFrequency",
+    }
+    resp = client.post(url, json=payload)
+    if not resp.get("isSuccess"):
+        return 60  # 默认 60 秒
+
+    data = resp["data"]
+    interval = int(data.get("propertiesValue", "60"))
+    return interval
