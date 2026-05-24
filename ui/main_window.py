@@ -4,9 +4,24 @@ from __future__ import annotations
 
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import tkinter as tk
-from tkinter import messagebox, ttk
 from typing import Callable
+
+from PySide6.QtCore import QObject, Qt, Signal
+from PySide6.QtGui import QBrush, QColor
+from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QHBoxLayout,
+    QMainWindow,
+    QMessageBox,
+    QPushButton,
+    QSplitter,
+    QStatusBar,
+    QTreeWidget,
+    QTreeWidgetItem,
+    QListWidget,
+    QVBoxLayout,
+    QWidget,
+)
 
 from api import course as course_api
 from api import video as video_api
@@ -15,31 +30,46 @@ from models.course import Course, HangStatus
 from models.olclass import OLClass
 from models.video import Video
 
-
-class _AutoScrollbar(ttk.Scrollbar):
-    """Scrollbar that hides itself when all content fits on screen."""
-
-    def set(self, lo, hi):
-        if float(lo) <= 0.0 and float(hi) >= 1.0:
-            self.grid_remove()
-        else:
-            self.grid()
-        super().set(lo, hi)
+_COLOR_HANGING = QColor("#0a7a0a")
+_COLOR_WAITING = QColor("#0055cc")
+_COLOR_COMPLETED = QColor("gray")
 
 
-class MainWindow(tk.Frame):
-    def __init__(self, master: tk.Misc, on_logout: Callable[[], None] | None = None):
-        super().__init__(master)
-        self.pack(fill="both", expand=True)
+class _Scheduler(QObject):
+    """将任意可调用对象调度到主线程执行（线程安全）。"""
+
+    _call: Signal = Signal(object)
+
+    def __init__(self, parent: QObject | None = None) -> None:
+        super().__init__(parent)
+        self._call.connect(self._execute, Qt.QueuedConnection)
+
+    def schedule(self, fn: Callable) -> None:
+        self._call.emit(fn)
+
+    def _execute(self, fn: Callable) -> None:
+        fn()
+
+
+class MainWindow(QMainWindow):
+    def __init__(self, on_logout: Callable[[], None] | None = None) -> None:
+        super().__init__()
+        self.setWindowTitle("宝武学习系统")
+        self.resize(1136, 640)
+        self.setMinimumSize(620, 380)
+
         self._on_logout = on_logout
         self._courses: list[Course] = []
         self._fetch_gen: int = 0  # 每次刷新递增，用于取消旧的 finishInfo 批量拉取
         self._tab_data: list[dict] = []  # [{"label": str, "class_no": str|None}, ...]
         self._current_tab: int = 0
         self._current_video: Video | None = None  # 当前正在播放的视频
+        self._course_items: dict[str, QTreeWidgetItem] = {}
+        self._video_items: dict[str, QTreeWidgetItem] = {}
+        self._scheduler = _Scheduler(self)
 
         self._queue_mgr = QueueManager(
-            schedule_ui=lambda fn: self.after(0, fn),
+            schedule_ui=self._scheduler.schedule,
             on_state_change=self._refresh_tree_tags,
             on_progress=self._on_hang_progress,
             on_error=self._on_hang_error,
@@ -54,137 +84,96 @@ class MainWindow(tk.Frame):
     # ── 构建界面 ────────────────────────────────────────────────────────────────
 
     def _build_ui(self) -> None:
-        # ── 顶部工具栏 ────────────────────────────────────────────────────────
-        toolbar = ttk.Frame(self)
-        toolbar.pack(fill="x", padx=10, pady=(8, 0))
+        central = QWidget()
+        self.setCentralWidget(central)
+        layout = QVBoxLayout(central)
+        layout.setContentsMargins(10, 8, 10, 0)
+        layout.setSpacing(4)
 
-        ttk.Button(toolbar, text="刷新列表", command=self._load_courses).pack(
-            side="left", padx=2
-        )
-        ttk.Button(toolbar, text="加入队列", command=self._add_to_queue).pack(
-            side="left", padx=2
-        )
-        ttk.Button(toolbar, text="从队列移除", command=self._remove_from_queue).pack(
-            side="left", padx=2
-        )
-        ttk.Button(toolbar, text="全部停止", command=self._stop_all).pack(
-            side="left", padx=2
-        )
+        # ── 顶部工具栏 ────────────────────────────────────────────────────────
+        toolbar_layout = QHBoxLayout()
+        toolbar_layout.setSpacing(4)
+
+        btn_refresh = QPushButton("刷新列表")
+        btn_refresh.clicked.connect(self._load_courses)
+        toolbar_layout.addWidget(btn_refresh)
+
+        btn_add = QPushButton("加入队列")
+        btn_add.clicked.connect(self._add_to_queue)
+        toolbar_layout.addWidget(btn_add)
+
+        btn_remove = QPushButton("从队列移除")
+        btn_remove.clicked.connect(self._remove_from_queue)
+        toolbar_layout.addWidget(btn_remove)
+
+        btn_stop = QPushButton("全部停止")
+        btn_stop.clicked.connect(self._stop_all)
+        toolbar_layout.addWidget(btn_stop)
+
+        toolbar_layout.addStretch()
 
         if self._on_logout:
-            ttk.Button(toolbar, text="退出", command=self._logout).pack(
-                side="right", padx=2
-            )
+            btn_logout = QPushButton("退出")
+            btn_logout.clicked.connect(self._logout)
+            toolbar_layout.addWidget(btn_logout)
 
-        # ── 底部状态栏（必须在 Treeview 之前 pack，才能占据底部整行）────────────
-        self._status_var = tk.StringVar(value="就绪")
-        status_bar = ttk.Label(
-            self,
-            textvariable=self._status_var,
-            foreground="gray",
-            anchor="w",
-            relief="sunken",
-            padding=(6, 2),
-        )
-        status_bar.pack(side="bottom", fill="x")
+        layout.addLayout(toolbar_layout)
+
+        # ── 状态栏 ────────────────────────────────────────────────────────────
+        self._status_bar = QStatusBar()
+        self._status_bar.setSizeGripEnabled(False)
+        self.setStatusBar(self._status_bar)
+        self._status_bar.showMessage("就绪")
 
         # ── 主内容区域（三列可拖拽分隔）────────────────────────────────────────
-        paned = ttk.PanedWindow(self, orient=tk.HORIZONTAL)
-        paned.pack(fill="both", expand=True, padx=10, pady=(4, 0))
+        splitter = QSplitter(Qt.Horizontal)
+        layout.addWidget(splitter, stretch=1)
 
-        # ── 左侧专区 ────────────────────────────────────────────────────────
-        olclass_outer = ttk.Frame(paned, width=150)
+        # ── 左侧专区列表 ────────────────────────────────────────────────────────
+        self._olclass_listbox = QListWidget()
+        self._olclass_listbox.setMaximumWidth(180)
+        self._olclass_listbox.setMinimumWidth(60)
+        self._olclass_listbox.currentRowChanged.connect(self._on_tab_select)
+        splitter.addWidget(self._olclass_listbox)
 
-        self._olclass_listbox = tk.Listbox(
-            olclass_outer,
-            selectmode="single",
-            activestyle="none",
-            relief="solid",
-            borderwidth=1,
-            highlightthickness=0,
-            font=("", 9),
-            cursor="hand2",
+        # ── 中间课程树 ─────────────────────────────────────────────────
+        self._course_tree = QTreeWidget()
+        self._course_tree.setColumnCount(5)
+        self._course_tree.setHeaderLabels(
+            ["课程名称", "学时", "已学时长", "课程成绩", "状态"]
         )
-        self._olclass_listbox.pack(fill="both", expand=True, pady=(6, 4))
-        self._olclass_listbox.bind("<<ListboxSelect>>", self._on_tab_select)
+        self._course_tree.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self._course_tree.setRootIsDecorated(False)
 
-        paned.add(olclass_outer, weight=0)
+        ch = self._course_tree.header()
+        ch.setSectionResizeMode(0, ch.ResizeMode.Stretch)
+        ch.setSectionResizeMode(1, ch.ResizeMode.Fixed)
+        ch.setSectionResizeMode(2, ch.ResizeMode.Fixed)
+        ch.setSectionResizeMode(3, ch.ResizeMode.Fixed)
+        ch.setSectionResizeMode(4, ch.ResizeMode.Fixed)
+        self._course_tree.setColumnWidth(1, 60)
+        self._course_tree.setColumnWidth(2, 140)
+        self._course_tree.setColumnWidth(3, 80)
+        self._course_tree.setColumnWidth(4, 70)
 
-        # ── 中间课程 ─────────────────────────────────────────────────
-        course_frame = ttk.Frame(paned)
+        splitter.addWidget(self._course_tree)
 
-        course_columns = ("name", "total", "watched", "score", "status")
-        self._course_tree = ttk.Treeview(
-            course_frame,
-            columns=course_columns,
-            show="headings",
-            selectmode="extended",
-        )
+        # ── 右侧视频树 ──────────────────────────────────────────────────────
+        self._video_tree = QTreeWidget()
+        self._video_tree.setColumnCount(2)
+        self._video_tree.setHeaderLabels(["视频名称", "进度"])
+        self._video_tree.setSelectionMode(QAbstractItemView.NoSelection)
+        self._video_tree.setRootIsDecorated(False)
+        self._video_tree.setMaximumWidth(320)
+        self._video_tree.setMinimumWidth(80)
 
-        col_cfg = [
-            ("name", "课程名称", 280, "w"),
-            ("total", "学时", 60, "center"),
-            ("watched", "已学时长", 140, "center"),
-            ("score", "课程成绩", 80, "center"),
-            ("status", "状态", 70, "center"),
-        ]
-        for col_id, heading, width, anchor in col_cfg:
-            self._course_tree.heading(col_id, text=heading)
-            self._course_tree.column(
-                col_id, width=width, anchor=anchor, stretch=(col_id == "name")
-            )
+        vh = self._video_tree.header()
+        vh.setSectionResizeMode(0, vh.ResizeMode.Stretch)
+        vh.setSectionResizeMode(1, vh.ResizeMode.Fixed)
+        self._video_tree.setColumnWidth(1, 90)
 
-        # 颜色标记
-        self._course_tree.tag_configure("hanging", foreground="#0a7a0a")
-        self._course_tree.tag_configure("waiting", foreground="#0055cc")
-        self._course_tree.tag_configure("completed", foreground="gray")
-
-        # 滚动条（auto-hide，使用 grid 布局）
-        vsb = _AutoScrollbar(course_frame, orient="vertical", command=self._course_tree.yview)
-        hsb = _AutoScrollbar(course_frame, orient="horizontal", command=self._course_tree.xview)
-        self._course_tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
-
-        course_frame.columnconfigure(0, weight=1)
-        course_frame.rowconfigure(0, weight=1)
-        self._course_tree.grid(row=0, column=0, sticky="nsew", pady=6)
-        vsb.grid(row=0, column=1, sticky="ns", pady=6)
-        hsb.grid(row=1, column=0, sticky="ew")
-
-        paned.add(course_frame, weight=1)
-
-        # ── 右侧视频 ──────────────────────────────────────────────────────
-        video_outer = ttk.Frame(paned, width=280)
-
-        # ttk.Label(video_outer, text="视频列表", foreground="gray", font=("", 8)).pack(
-        #     anchor="w", pady=(4, 2), padx=4
-        # )
-
-        video_frame = ttk.Frame(video_outer)
-        video_frame.pack(fill="both", expand=True)
-
-        video_columns = ("vname", "vprogress")
-        self._video_tree = ttk.Treeview(
-            video_frame,
-            columns=video_columns,
-            show="headings",
-            selectmode="none",
-        )
-        self._video_tree.heading("vname", text="视频名称")
-        self._video_tree.heading("vprogress", text="进度")
-        self._video_tree.column("vname", width=170, anchor="w", stretch=True)
-        self._video_tree.column("vprogress", width=90, anchor="center", stretch=False)
-
-        self._video_tree.tag_configure("playing", foreground="#0a7a0a")
-
-        vvsb = _AutoScrollbar(video_frame, orient="vertical", command=self._video_tree.yview)
-        self._video_tree.configure(yscrollcommand=vvsb.set)
-
-        video_frame.columnconfigure(0, weight=1)
-        video_frame.rowconfigure(0, weight=1)
-        self._video_tree.grid(row=0, column=0, sticky="nsew", pady=6)
-        vvsb.grid(row=0, column=1, sticky="ns", pady=6)
-
-        paned.add(video_outer, weight=0)
+        splitter.addWidget(self._video_tree)
+        splitter.setSizes([150, 700, 280])
 
     # ── 数据加载 ──────────────────────────────────────────────────────────────────────
 
@@ -226,10 +215,7 @@ class MainWindow(tk.Frame):
 
     @staticmethod
     def _finish_info_str(course: Course) -> str:
-        """将 course.finish_info 格式化为显示字符串。
-
-        直接反映服务端返回的数据，如 "2.5/151分钟 (100%)";
-        """
+        """将 course.finish_info 格式化为显示字符串。"""
         info = course.finish_info
         if info:
             for detail in info.get("details") or []:
@@ -241,13 +227,36 @@ class MainWindow(tk.Frame):
                     return f"{finish_f:.2f}/{pred}{unit}"
                 except ValueError:
                     pass
+        return ""
+
+    @staticmethod
+    def _item_color(course: Course) -> QColor | None:
+        if course.hang_status == HangStatus.HANGING:
+            return _COLOR_HANGING
+        if course.hang_status == HangStatus.WAITING:
+            return _COLOR_WAITING
+        if MainWindow._is_duration_completed(course):
+            return _COLOR_COMPLETED
+        return None
+
+    @staticmethod
+    def _set_item_color(
+        item: QTreeWidgetItem, color: QColor | None, col_count: int
+    ) -> None:
+        for i in range(col_count):
+            if color is not None:
+                item.setForeground(i, QBrush(color))
+            else:
+                item.setData(i, Qt.ForegroundRole, None)
 
     def _load_tabs(self) -> None:
         """初始化标签页：先放公开课，再异步追加有效期内的专区。"""
         self._tab_data = [{"label": "公开课", "class_no": None}]
-        self._olclass_listbox.delete(0, "end")
-        self._olclass_listbox.insert("end", "公开课")
-        self._olclass_listbox.selection_set(0)
+        self._olclass_listbox.blockSignals(True)
+        self._olclass_listbox.clear()
+        self._olclass_listbox.addItem("公开课")
+        self._olclass_listbox.setCurrentRow(0)
+        self._olclass_listbox.blockSignals(False)
         self._current_tab = 0
         self._load_courses()
         threading.Thread(target=self._fetch_tabs, daemon=True).start()
@@ -256,7 +265,7 @@ class MainWindow(tk.Frame):
         """后台拉取专区列表，追加到标签栏。"""
         try:
             classes = course_api.get_my_classes()
-            self.after(0, self._add_class_tabs, classes)
+            self._scheduler.schedule(lambda c=classes: self._add_class_tabs(c))
         except Exception:  # noqa: BLE001
             pass
 
@@ -264,22 +273,18 @@ class MainWindow(tk.Frame):
         """将有效专区追加到标签页列表。"""
         for c in classes:
             self._tab_data.append({"label": c.class_name, "class_no": c.class_no})
-            self._olclass_listbox.insert("end", c.class_name)
+            self._olclass_listbox.addItem(c.class_name)
 
-    def _on_tab_select(self, _event=None) -> None:
+    def _on_tab_select(self, idx: int) -> None:
         """切换标签页时重新加载对应课程列表。"""
-        sel = self._olclass_listbox.curselection()
-        if not sel:
-            return
-        idx = sel[0]
-        if idx == self._current_tab:
+        if idx < 0 or idx == self._current_tab:
             return
         self._current_tab = idx
         self._load_courses()
 
     def _load_courses(self) -> None:
         self._fetch_gen += 1
-        self._status_var.set("加载中…")
+        self._status_bar.showMessage("加载中…")
         threading.Thread(target=self._fetch_courses, daemon=True).start()
 
     def _fetch_courses(self) -> None:
@@ -295,7 +300,7 @@ class MainWindow(tk.Frame):
             else:
                 courses = course_api.get_onlineclass_courses(class_no)
 
-            self.after(0, self._populate_tree, courses)
+            self._scheduler.schedule(lambda c=courses: self._populate_tree(c))
 
             # 并发拉取每门课的完成情况（最多 8 个并发请求）
             def _fetch_one(c: Course) -> Course:
@@ -311,11 +316,16 @@ class MainWindow(tk.Frame):
                         break
                     try:
                         c = future.result()
-                        self.after(0, self._update_finish_info_cell, c)
+                        self._scheduler.schedule(
+                            lambda cc=c: self._update_finish_info_cell(cc)
+                        )
                     except Exception:  # noqa: BLE001
                         pass
         except Exception as exc:  # noqa: BLE001
-            self.after(0, lambda: self._status_var.set(f"加载失败: {exc}"))
+            msg = str(exc)
+            self._scheduler.schedule(
+                lambda m=msg: self._status_bar.showMessage(f"加载失败: {m}")
+            )
 
     def _populate_tree(self, courses: list[Course]) -> None:
         # 保留现有的挂机状态
@@ -326,51 +336,47 @@ class MainWindow(tk.Frame):
             c.hang_status = hang_map.get(c.course_guid, HangStatus.IDLE)
 
         self._courses = courses
+        self._course_tree.clear()
+        self._course_items.clear()
 
-        # 清空并重填 Treeview
-        self._course_tree.delete(*self._course_tree.get_children())
         for c in courses:
             total_str = f"{c.course_hours:.1f}"
-
-            tag = ""
-            if c.hang_status == HangStatus.HANGING:
-                tag = "hanging"
-            elif c.hang_status == HangStatus.WAITING:
-                tag = "waiting"
-            elif self._is_duration_completed(c):
-                tag = "completed"
-
-            self._course_tree.insert(
-                "",
-                "end",
-                iid=c.course_guid,
-                values=(
+            item = QTreeWidgetItem(
+                [
                     c.course_name,
                     total_str,
                     self._finish_info_str(c),
                     self._score_str(c),
                     self._status_str(c),
-                ),
-                tags=(tag,) if tag else (),
+                ]
             )
+            for col in range(1, 5):
+                item.setTextAlignment(col, Qt.AlignCenter)
+            self._set_item_color(item, self._item_color(c), 5)
+            self._course_tree.addTopLevelItem(item)
+            self._course_items[c.course_guid] = item
 
-        self._status_var.set(f"共 {len(courses)} 门课程")
+        self._status_bar.showMessage(f"共 {len(courses)} 门课程")
 
     # ── 按钮操作 ─────────────────────────────────────────────────────────────────
 
     def _selected_courses(self) -> list[Course]:
-        selected_ids = self._course_tree.selection()
-        return [c for c in self._courses if c.course_guid in selected_ids]
+        selected_items = set(self._course_tree.selectedItems())
+        return [
+            c
+            for c in self._courses
+            if self._course_items.get(c.course_guid) in selected_items
+        ]
 
     def _add_to_queue(self) -> None:
         courses = self._selected_courses()
         if not courses:
-            messagebox.showinfo("提示", "请先选择课程", parent=self)
+            QMessageBox.information(self, "提示", "请先选择课程")
             return
         for c in courses:
             if self._is_duration_completed(c):
-                messagebox.showwarning(
-                    "提示", f"《{c.course_name}》已完成，无需挂机", parent=self
+                QMessageBox.warning(
+                    self, "提示", f"《{c.course_name}》已完成，无需挂机"
                 )
                 continue
             self._queue_mgr.enqueue(c)
@@ -378,7 +384,7 @@ class MainWindow(tk.Frame):
     def _remove_from_queue(self) -> None:
         courses = self._selected_courses()
         if not courses:
-            messagebox.showinfo("提示", "请先选择课程", parent=self)
+            QMessageBox.information(self, "提示", "请先选择课程")
             return
         for c in courses:
             self._queue_mgr.dequeue(c)
@@ -399,8 +405,8 @@ class MainWindow(tk.Frame):
     ) -> None:
         """每秒刷新状态栏进度；如果 finish_info 已更新则同步刷新行内容。"""
         pct = elapsed * 100 // total if total else 0
-        self._status_var.set(
-            f"挂机中：{course.course_name}  [{video.index + 1}] {video.name}"
+        self._status_bar.showMessage(
+            f"挂机中：{course.course_name}  [{video.index + 1}] {video.video_name}"
             f"  {elapsed // 60}:{elapsed % 60:02d}/{total // 60}:{total % 60:02d}"
             f"  ({pct}%)"
         )
@@ -409,51 +415,33 @@ class MainWindow(tk.Frame):
         self._update_video_progress(video, elapsed, total)
 
     def _on_hang_error(self, msg: str) -> None:
-        messagebox.showerror("挂机错误", msg, parent=self)
-        self._status_var.set("就绪")
+        QMessageBox.critical(self, "挂机错误", msg)
+        self._status_bar.showMessage("就绪")
 
     def _update_finish_info_cell(self, course: Course) -> None:
         """更新指定行的状态、已学时长和课程成绩列（主线程调用）。"""
+        item = self._course_items.get(course.course_guid)
+        if item is None:
+            return
         try:
-            if self._course_tree.exists(course.course_guid):
-                self._course_tree.set(course.course_guid, "status", self._status_str(course))
-                self._course_tree.set(
-                    course.course_guid, "watched", self._finish_info_str(course)
-                )
-                self._course_tree.set(course.course_guid, "score", self._score_str(course))
-                # 同步更新行颜色标签
-                if course.hang_status == HangStatus.HANGING:
-                    tag = "hanging"
-                elif course.hang_status == HangStatus.WAITING:
-                    tag = "waiting"
-                elif self._is_duration_completed(course):
-                    tag = "completed"
-                else:
-                    tag = ""
-                self._course_tree.item(course.course_guid, tags=(tag,) if tag else ())
+            item.setText(2, self._finish_info_str(course))
+            item.setText(3, self._score_str(course))
+            item.setText(4, self._status_str(course))
+            self._set_item_color(item, self._item_color(course), 5)
         except Exception:  # noqa: BLE001
             pass  # 窗口已销毁，忽略
 
     def _refresh_tree_tags(self) -> None:
-        """刷新行标签和 已学时长 列，避免重新请求接口。队列为空时重置状态栏。"""
+        """刷新行颜色和 已学时长 列，避免重新请求接口。队列为空时重置状态栏。"""
         for c in self._courses:
-            if not self._course_tree.exists(c.course_guid):
+            item = self._course_items.get(c.course_guid)
+            if item is None:
                 continue
-            tag = ""
-            if c.hang_status == HangStatus.HANGING:
-                tag = "hanging"
-            elif c.hang_status == HangStatus.WAITING:
-                tag = "waiting"
-            elif self._is_duration_completed(c):
-                tag = "completed"
-            self._course_tree.item(
-                c.course_guid,
-                tags=(tag,) if tag else (),
-            )
-            self._course_tree.set(c.course_guid, "status", self._status_str(c))
+            self._set_item_color(item, self._item_color(c), 5)
+            item.setText(4, self._status_str(c))
             self._update_finish_info_cell(c)
         if not self._queue_mgr.is_running:
-            self._status_var.set("就绪")
+            self._status_bar.showMessage("就绪")
 
     # ── 视频列表回调（在主线程执行）──────────────────────────────────────────────
 
@@ -463,46 +451,46 @@ class MainWindow(tk.Frame):
 
     def _on_videos_loaded(self, course: Course, videos: list[Video]) -> None:
         """挂机开始时收到视频列表，填充右侧视频树。"""
-        self._video_tree.delete(*self._video_tree.get_children())
+        self._video_tree.clear()
+        self._video_items.clear()
         self._current_video = None
         for v in videos:
             elapsed_str = self._fmt_duration(v.play_progress)
             total_str = self._fmt_duration(v.duration)
-            self._video_tree.insert(
-                "",
-                "end",
-                iid=v.video_guid,
-                values=(v.video_name, f"{elapsed_str} / {total_str}"),
-            )
+            item = QTreeWidgetItem([v.video_name, f"{elapsed_str} / {total_str}"])
+            item.setTextAlignment(1, Qt.AlignCenter)
+            self._video_tree.addTopLevelItem(item)
+            self._video_items[v.video_guid] = item
 
     def _on_video_start(self, course: Course, video: Video) -> None:
         """视频开始播放时标记为绿色，取消上一个视频的标记。"""
-        if self._current_video and self._video_tree.exists(self._current_video.video_guid):
-            self._video_tree.item(self._current_video.video_guid, tags=())
+        if self._current_video:
+            prev = self._video_items.get(self._current_video.video_guid)
+            if prev:
+                self._set_item_color(prev, None, 2)
         self._current_video = video
-        if self._video_tree.exists(video.video_guid):
-            self._video_tree.item(video.video_guid, tags=("playing",))
-            self._video_tree.see(video.video_guid)
+        item = self._video_items.get(video.video_guid)
+        if item:
+            self._set_item_color(item, _COLOR_HANGING, 2)
+            self._video_tree.scrollToItem(item)
 
     def _on_video_complete(self, course: Course, video: Video) -> None:
         """视频完成后取消绿色标记，更新进度为满。"""
-        if self._video_tree.exists(video.video_guid):
+        item = self._video_items.get(video.video_guid)
+        if item:
             total_str = self._fmt_duration(video.duration)
-            self._video_tree.item(video.video_guid, tags=())
-            self._video_tree.set(
-                video.video_guid, "vprogress", f"{total_str} / {total_str}"
-            )
+            item.setText(1, f"{total_str} / {total_str}")
+            self._set_item_color(item, None, 2)
         if self._current_video is video:
             self._current_video = None
 
     def _update_video_progress(self, video: Video, elapsed: int, total: int) -> None:
         """每秒更新视频树中当前视频的进度列。"""
         try:
-            if self._video_tree.exists(video.video_guid):
+            item = self._video_items.get(video.video_guid)
+            if item:
                 elapsed_str = self._fmt_duration(elapsed)
                 total_str = self._fmt_duration(total)
-                self._video_tree.set(
-                    video.video_guid, "vprogress", f"{elapsed_str} / {total_str}"
-                )
+                item.setText(1, f"{elapsed_str} / {total_str}")
         except Exception:  # noqa: BLE001
             pass

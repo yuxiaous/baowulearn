@@ -1,94 +1,114 @@
-"""
-登录窗口（tkinter）。
-
-布局：
-  工号 + 密码 + 验证码图片 + 验证码输入 + 登录按钮
-  
-登录成功后关闭自身并调用 on_login_success(token) 回调。
-"""
+"""登录窗口（PySide6）。"""
 
 from __future__ import annotations
 
-import io
 import threading
-import tkinter as tk
-from tkinter import messagebox, ttk
 from typing import Callable
 
-from PIL import Image, ImageTk
+from PySide6.QtCore import QObject, Qt, Signal
+from PySide6.QtGui import QPixmap
+from PySide6.QtWidgets import (
+    QDialog,
+    QFormLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 
 from api import auth
 from core import storage
 
 
-class LoginWindow(tk.Toplevel):
-    def __init__(self, master: tk.Misc, on_login_success: Callable[[], None]):
-        super().__init__(master)
-        self.title("宝武学习系统 — 登录")
-        self.resizable(False, False)
+class _Scheduler(QObject):
+    """将任意可调用对象调度到主线程执行（线程安全）。"""
+
+    _call: Signal = Signal(object)
+
+    def __init__(self, parent: QObject | None = None) -> None:
+        super().__init__(parent)
+        self._call.connect(self._execute, Qt.QueuedConnection)
+
+    def schedule(self, fn: Callable) -> None:
+        self._call.emit(fn)
+
+    def _execute(self, fn: Callable) -> None:
+        fn()
+
+
+class LoginWindow(QDialog):
+    def __init__(
+        self,
+        on_login_success: Callable[[], None],
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("宝武学习系统 — 登录")
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         self._on_success = on_login_success
         self._captcha_id: str = ""
-        self._captcha_photo: ImageTk.PhotoImage | None = None
+        self._scheduler = _Scheduler(self)
 
         self._build_ui()
         self._restore_credentials()
         self._load_captcha()
 
-        # 居中显示
-        self.update_idletasks()
-        w, h = self.winfo_width(), self.winfo_height()
-        sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
-        self.geometry(f"{w}x{h}+{(sw - w) // 2}+{(sh - h) // 2}")
+        self.adjustSize()
+        self.setFixedSize(self.size())
 
     # ── 构建界面 ────────────────────────────────────────────────────────────────
 
     def _build_ui(self) -> None:
-        pad = {"padx": 10, "pady": 6}
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(20, 20, 20, 20)
+        outer.setSpacing(0)
 
-        frame = ttk.Frame(self, padding=20)
-        frame.pack(fill="both", expand=True)
+        form = QFormLayout()
+        form.setSpacing(10)
+        form.setLabelAlignment(Qt.AlignRight)
 
         # 工号
-        ttk.Label(frame, text="工号：").grid(row=0, column=0, sticky="e", **pad)
-        self._var_user = tk.StringVar()
-        ttk.Entry(frame, textvariable=self._var_user, width=22).grid(
-            row=0, column=1, sticky="w", **pad
-        )
+        self._user_edit = QLineEdit()
+        self._user_edit.setMinimumWidth(180)
+        form.addRow("工号：", self._user_edit)
 
         # 密码
-        ttk.Label(frame, text="密码：").grid(row=1, column=0, sticky="e", **pad)
-        self._var_pwd = tk.StringVar()
-        ttk.Entry(frame, textvariable=self._var_pwd, show="*", width=22).grid(
-            row=1, column=1, sticky="w", **pad
-        )
+        self._pwd_edit = QLineEdit()
+        self._pwd_edit.setEchoMode(QLineEdit.Password)
+        form.addRow("密码：", self._pwd_edit)
 
-        # 验证码图片
-        ttk.Label(frame, text="验证码：").grid(row=2, column=0, sticky="e", **pad)
-        captcha_frame = ttk.Frame(frame)
-        captcha_frame.grid(row=2, column=1, sticky="w", **pad)
-
-        self._captcha_label = ttk.Label(captcha_frame, text="加载中…", cursor="hand2")
-        self._captcha_label.pack(side="left", padx=(0, 6))
-        self._captcha_label.bind("<Button-1>", lambda _: self._load_captcha())
-
-        ttk.Button(captcha_frame, text="刷新", command=self._load_captcha, width=5).pack(
-            side="left"
-        )
+        # 验证码图片行
+        captcha_row = QHBoxLayout()
+        self._captcha_label = QLabel("加载中…")
+        self._captcha_label.setFixedWidth(120)
+        self._captcha_label.setCursor(Qt.PointingHandCursor)
+        self._captcha_label.mousePressEvent = lambda _: self._load_captcha()
+        captcha_row.addWidget(self._captcha_label)
+        refresh_btn = QPushButton("刷新")
+        refresh_btn.setFixedWidth(50)
+        refresh_btn.clicked.connect(self._load_captcha)
+        captcha_row.addWidget(refresh_btn)
+        captcha_row.addStretch()
+        form.addRow("验证码：", captcha_row)
 
         # 验证码输入
-        ttk.Label(frame, text="").grid(row=3, column=0)  # spacer
-        self._var_captcha = tk.StringVar()
-        self._captcha_entry = ttk.Entry(
-            frame, textvariable=self._var_captcha, width=22
-        )
-        self._captcha_entry.grid(row=3, column=1, sticky="w", **pad)
+        self._captcha_edit = QLineEdit()
+        form.addRow("", self._captcha_edit)
+
+        outer.addLayout(form)
+        outer.addSpacing(14)
 
         # 登录按钮
-        self._btn_login = ttk.Button(frame, text="登 录", command=self._on_login_click)
-        self._btn_login.grid(row=4, column=0, columnspan=2, pady=14)
+        self._btn_login = QPushButton("登 录")
+        self._btn_login.setDefault(True)
+        self._btn_login.clicked.connect(self._on_login_click)
+        outer.addWidget(self._btn_login, alignment=Qt.AlignHCenter)
 
         # 回车触发登录
-        self.bind("<Return>", lambda _: self._on_login_click())
+        self._captcha_edit.returnPressed.connect(self._on_login_click)
 
     # ── 加载验证码 ──────────────────────────────────────────────────────────────
 
@@ -96,74 +116,78 @@ class LoginWindow(tk.Toplevel):
         """从本地存储恢复上次登录的工号和密码。"""
         login_name, password = storage.load_credentials()
         if login_name:
-            self._var_user.set(login_name)
+            self._user_edit.setText(login_name)
         if password:
-            self._var_pwd.set(password)
+            self._pwd_edit.setText(password)
 
     def _load_captcha(self) -> None:
-        self._captcha_label.config(text="加载中…", image="")
+        self._captcha_label.setPixmap(QPixmap())
+        self._captcha_label.setText("加载中…")
         threading.Thread(target=self._fetch_captcha, daemon=True).start()
 
     def _fetch_captcha(self) -> None:
         try:
             img_bytes, captcha_id = auth.get_captcha()
             self._captcha_id = captcha_id
-            img = Image.open(io.BytesIO(img_bytes))
-            # 固定宽度，保持比例
-            target_w = 120
-            ratio = target_w / img.width
-            img = img.resize((target_w, max(1, int(img.height * ratio))), Image.LANCZOS)
-            photo = ImageTk.PhotoImage(img)
-            # 必须在主线程更新 UI
-            self.after(0, self._set_captcha_image, photo)
+            pixmap = QPixmap()
+            pixmap.loadFromData(img_bytes)
+            scaled = pixmap.scaledToWidth(120, Qt.SmoothTransformation)
+            self._scheduler.schedule(lambda p=scaled: self._set_captcha_image(p))
         except Exception as exc:  # noqa: BLE001
-            self.after(0, lambda: self._captcha_label.config(text=f"加载失败\n{exc}", image=""))
+            msg = str(exc)
+            self._scheduler.schedule(
+                lambda m=msg: self._captcha_label.setText(f"加载失败\n{m}")
+            )
 
-    def _set_captcha_image(self, photo: ImageTk.PhotoImage) -> None:
-        self._captcha_photo = photo  # 防止被 GC
-        self._captcha_label.config(image=photo, text="")
-        self._var_captcha.set("")
-        self._captcha_entry.focus_set()
+    def _set_captcha_image(self, pixmap: QPixmap) -> None:
+        self._captcha_label.setPixmap(pixmap)
+        self._captcha_label.setText("")
+        self._captcha_edit.clear()
+        self._captcha_edit.setFocus()
 
     # ── 登录逻辑 ────────────────────────────────────────────────────────────────
 
     def _on_login_click(self) -> None:
-        user = self._var_user.get().strip()
-        pwd = self._var_pwd.get()
-        captcha = self._var_captcha.get().strip()
+        user = self._user_edit.text().strip()
+        pwd = self._pwd_edit.text()
+        captcha = self._captcha_edit.text().strip()
 
         if not user:
-            messagebox.showwarning("提示", "请输入工号", parent=self)
+            QMessageBox.warning(self, "提示", "请输入工号")
             return
         if not pwd:
-            messagebox.showwarning("提示", "请输入密码", parent=self)
+            QMessageBox.warning(self, "提示", "请输入密码")
             return
         if not captcha:
-            messagebox.showwarning("提示", "请输入验证码", parent=self)
+            QMessageBox.warning(self, "提示", "请输入验证码")
             return
         if not self._captcha_id:
-            messagebox.showwarning("提示", "验证码尚未加载，请稍候", parent=self)
+            QMessageBox.warning(self, "提示", "验证码尚未加载，请稍候")
             return
 
-        self._btn_login.config(state="disabled", text="登录中…")
+        self._btn_login.setEnabled(False)
+        self._btn_login.setText("登录中…")
         threading.Thread(
-            target=self._do_login, args=(user, pwd, captcha, self._captcha_id), daemon=True
+            target=self._do_login,
+            args=(user, pwd, captcha, self._captcha_id),
+            daemon=True,
         ).start()
 
     def _do_login(self, user: str, pwd: str, captcha: str, captcha_id: str) -> None:
         try:
             auth.login(user, pwd, captcha, captcha_id)
-            self.after(0, self._handle_login_success)
+            self._scheduler.schedule(self._handle_login_success)
         except Exception as exc:  # noqa: BLE001
-            self.after(0, self._handle_login_fail, str(exc))
+            msg = str(exc)
+            self._scheduler.schedule(lambda m=msg: self._handle_login_fail(m))
 
     def _handle_login_success(self) -> None:
-        storage.save_credentials(self._var_user.get().strip(), self._var_pwd.get())
-        self.destroy()
+        storage.save_credentials(self._user_edit.text().strip(), self._pwd_edit.text())
+        self.accept()
         self._on_success()
 
     def _handle_login_fail(self, msg: str) -> None:
-        messagebox.showerror("登录失败", msg, parent=self)
-        self._btn_login.config(state="normal", text="登 录")
-        # 验证码错误时自动刷新
+        QMessageBox.critical(self, "登录失败", msg)
+        self._btn_login.setEnabled(True)
+        self._btn_login.setText("登 录")
         self._load_captcha()
