@@ -192,7 +192,7 @@ class HeartbeatWorker:
             )
 
         # 完成信号
-        self._try_call(video_api.complete_video, course.class_no, course.course_no)
+        self._try_call(video_api.complete_video, course)
 
         # 结束播放信号
         self._try_call(video_api.end_video, course, video, video.duration)
@@ -205,7 +205,7 @@ class HeartbeatWorker:
     # ── 容错调用 ──────────────────────────────────────────────────────────────
 
     def _refresh_finish_info(self) -> None:
-        """触发服务端重算，然后查询 finishInfo 更新到 course.finish_info。"""
+        """触发服务端重算。"""
         try:
             course_api.save_compute_task_course_detail(self._course)
         except Exception:  # noqa: BLE001

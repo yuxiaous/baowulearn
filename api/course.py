@@ -176,7 +176,7 @@ def get_course_detail(course: Course) -> Course:
         raise RuntimeError(f"获取课程详情失败: {resp.get('message', resp)}")
 
     data = resp["data"]
-    course.course_detail = data
+    course._course_detail = data
     course.course_guid = str(data.get("guid", ""))
     course.course_no = str(data.get("courseNo", ""))
     course.course_name = str(data.get("courseName", ""))
@@ -222,12 +222,12 @@ def get_course_finish_info(course: Course) -> Course:
         raise RuntimeError(f"查询课程完成情况失败: {resp.get('message', resp)}")
 
     data = resp["data"]
-    course.finish_info = data
-    course.course_score = float(data.get("learnScore", 0.0))
+    course._finish_info = data
+    course.course_score = float(data.get("learnScore") or 0.0)
 
-    for detail in data.get("details", []):
+    for detail in data.get("details") or []:
         if detail.get("attributeCode") == "CE002":  # 学习时长
-            course.course_duration = float(detail.get("predValue", 0.0))
-            course.course_finished = float(detail.get("finishValue", 0.0))
+            course.course_duration = float(detail.get("predValue") or 0.0)
+            course.course_finished = float(detail.get("finishValue") or 0.0)
 
     return course

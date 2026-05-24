@@ -179,17 +179,9 @@ class MainWindow(QMainWindow):
 
     @staticmethod
     def _is_duration_completed(course: Course) -> bool:
-        """基于已学时长判断是否完成。有 finishInfo 时用它，否则回退到服务端 learnStatus。"""
-        info = course.finish_info
-        if info:
-            for detail in info.get("details") or []:
-                try:
-                    pred_f = float(detail.get("predValue") or "0")
-                    if pred_f <= 0:
-                        continue
-                    return float(detail.get("finishValue") or "0") >= pred_f
-                except ValueError:
-                    continue
+        """基于已学时长判断是否完成。有时长数据时用它，否则回退到服务端 learnStatus。"""
+        if course.course_duration > 0:
+            return course.course_finished >= course.course_duration
         return course.is_completed
 
     @staticmethod
@@ -203,30 +195,16 @@ class MainWindow(QMainWindow):
 
     @staticmethod
     def _score_str(course: Course) -> str:
-        """从 finish_info 取课程成绩（learnScore）。"""
-        info = course.finish_info
-        if info:
-            score = info.get("learnScore") or ""
-            try:
-                return f"{float(score):.2f}"
-            except ValueError:
-                pass
+        """从 course_score 取课程成绩。"""
+        if course.course_score:
+            return f"{course.course_score:.2f}"
         return "-"
 
     @staticmethod
     def _finish_info_str(course: Course) -> str:
-        """将 course.finish_info 格式化为显示字符串。"""
-        info = course.finish_info
-        if info:
-            for detail in info.get("details") or []:
-                unit = detail.get("attributeUnit", "")
-                finish = detail.get("finishValue") or ""
-                pred = detail.get("predValue") or ""
-                try:
-                    finish_f = float(finish)
-                    return f"{finish_f:.2f}/{pred}{unit}"
-                except ValueError:
-                    pass
+        """将课程已学时长格式化为显示字符串。"""
+        if course.course_duration > 0:
+            return f"{course.course_finished:.2f}/{course.course_duration:.2f}分钟"
         return ""
 
     @staticmethod
@@ -296,9 +274,12 @@ class MainWindow(QMainWindow):
 
         try:
             if class_no is None:
+
                 def _fetch_page(p: int) -> tuple[list[Course], int, int]:
                     return course_api.get_openclass_courses(page=p)
+
             else:
+
                 def _fetch_page(p: int) -> tuple[list[Course], int, int]:
                     return course_api.get_onlineclass_courses(class_no, page=p)
 
@@ -427,7 +408,7 @@ class MainWindow(QMainWindow):
     def _on_hang_progress(
         self, course: Course, video: Video, elapsed: int, total: int
     ) -> None:
-        """每秒刷新状态栏进度；如果 finish_info 已更新则同步刷新行内容。"""
+        """每秒刷新状态栏进度；同步刷新行内容。"""
         pct = elapsed * 100 // total if total else 0
         self._status_bar.showMessage(
             f"挂机中：{course.course_name}  [{video.index + 1}] {video.video_name}"
@@ -443,7 +424,7 @@ class MainWindow(QMainWindow):
         self._status_bar.showMessage("就绪")
 
     def _update_finish_info_cell(self, course: Course) -> None:
-        """更新指定行的状态、已学时长和课程成绩列（主线程调用）。"""
+        """更新指定行的已学时长、课程成绩和状态列（主线程调用）。"""
         item = self._course_items.get(course.course_guid)
         if item is None:
             return
