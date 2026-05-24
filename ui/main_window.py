@@ -296,11 +296,35 @@ class MainWindow(QMainWindow):
 
         try:
             if class_no is None:
-                courses = course_api.get_openclass_courses()
+                def _fetch_page(p: int) -> tuple[list[Course], int, int]:
+                    return course_api.get_openclass_courses(page=p)
             else:
-                courses = course_api.get_onlineclass_courses(class_no)
+                def _fetch_page(p: int) -> tuple[list[Course], int, int]:
+                    return course_api.get_onlineclass_courses(class_no, page=p)
 
-            self._scheduler.schedule(lambda c=courses: self._populate_tree(c))
+            all_courses: list[Course] = []
+            page = 1
+            total_pages = 1
+            while page <= total_pages:
+                if self._fetch_gen != gen:
+                    return
+                courses, total_courses, total_pages = _fetch_page(page)
+                all_courses.extend(courses)
+                courses = all_courses
+                is_last = page >= total_pages
+
+                def _update(
+                    c=list(all_courses),
+                    n=len(all_courses),
+                    t=total_courses,
+                    last=is_last,
+                ) -> None:
+                    self._populate_tree(c)
+                    if not last:
+                        self._status_bar.showMessage(f"加载中… {n}/{t} 门课程")
+
+                self._scheduler.schedule(_update)
+                page += 1
 
             # 并发拉取每门课的完成情况（最多 8 个并发请求）
             def _fetch_one(c: Course) -> Course:

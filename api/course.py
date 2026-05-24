@@ -12,10 +12,11 @@ from models.olclass import OLClass
 def get_openclass_courses(
     search_type: str = "1",  # "1" 全部, "2" 学习中, "3" 已完成
     page: int = 1,
-    page_size: int = 100,
-) -> list[Course]:
+    page_size: int = 10,
+) -> tuple[list[Course], int, int]:
     """
-    获取我的公开课课程列表（公开课标签页使用）。
+    获取我的公开课课程列表（单页）。
+    返回 (课程列表, 总数, 总页数)。
     """
     url = "/service/tms/ols/student/queryPageOpenClass"
     payload = {
@@ -33,8 +34,12 @@ def get_openclass_courses(
     if not resp.get("isSuccess"):
         raise RuntimeError(f"获取公开课课程列表失败: {resp.get('message', resp)}")
 
-    records = resp["data"].get("records", [])
-    return [
+    page_data = resp["data"]
+    records = page_data.get("records", [])
+    total_courses = int(page_data.get("total", 0))
+    total_pages = int(page_data.get("pages", 1))
+
+    courses = [
         Course(
             course_guid=str(record.get("courseGuid", "")),
             course_no=str(record.get("courseNo", "")),
@@ -51,6 +56,7 @@ def get_openclass_courses(
         )
         for record in records
     ]
+    return courses, total_courses, total_pages
 
 
 # ── 获取专区列表 ──────────────────────────────────────────────────────────────
@@ -106,10 +112,11 @@ def get_onlineclass_courses(
     class_no: str,
     class_type: str = "ZE0",
     page: int = 1,
-    page_size: int = 4,
-) -> list[Course]:
+    page_size: int = 5,
+) -> tuple[list[Course], int, int]:
     """
-    获取专区课程列表
+    获取专区课程列表（单页）。
+    返回 (课程列表, 总数, 总页数)。
     """
     url = "/service/tms/ols/onlineClassCourse/getOnlineClassCourseSortPage"
     payload = {
@@ -129,8 +136,12 @@ def get_onlineclass_courses(
     if not resp.get("isSuccess"):
         raise RuntimeError(f"获取专区课程列表失败: {resp.get('message', resp)}")
 
-    records = resp["data"].get("records", [])
-    return [
+    page_data = resp["data"]
+    records = page_data.get("records", [])
+    total_courses = int(page_data.get("total", 0))
+    total_pages = int(page_data.get("pages", 1))
+
+    courses = [
         Course(
             course_guid=str(record.get("guid", "")),
             course_no=str(record.get("courseNo", "")),
@@ -146,6 +157,7 @@ def get_onlineclass_courses(
         )
         for record in records
     ]
+    return courses, total_courses, total_pages
 
 
 # ── 获取课程详情 ──────────────────────────────────────────────────────────────
