@@ -47,8 +47,8 @@ def main() -> None:
         dlg.finished.connect(_on_finished)
 
     # 如果 config.py 中配置了 TOKEN，直接跳过登录
-    if getattr(config, "TOKEN", "").strip():
-        client.set_token(config.TOKEN.strip())
+    if config.TOKEN:
+        client.set_token(config.TOKEN)
         open_main_window()
     else:
         open_login_window()

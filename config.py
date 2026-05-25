@@ -2,6 +2,7 @@
 宝武学习系统挂课工具 — 全局配置
 """
 
+import os
 import pathlib
 import re
 import sys
@@ -9,7 +10,6 @@ import sys
 
 def _read_version() -> str:
     if getattr(sys, "frozen", False):
-        # 打包成 exe 后，pyproject.toml 被放在 sys._MEIPASS 目录下
         base = pathlib.Path(sys._MEIPASS)  # type: ignore[attr-defined]
     else:
         base = pathlib.Path(__file__).parent
@@ -21,7 +21,33 @@ def _read_version() -> str:
         return "unknown"
 
 
+def _load_dotenv() -> None:
+    """从 .env 文件加载环境变量，不覆盖已存在的系统变量。"""
+    if getattr(sys, "frozen", False):
+        # exe 运行时，.env 放在 exe 同级目录
+        base = pathlib.Path(sys.executable).parent
+    else:
+        base = pathlib.Path(__file__).parent
+    env_file = base / ".env"
+    if not env_file.exists():
+        return
+    for line in env_file.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
+_load_dotenv()
+
 VERSION: str = _read_version()
+
+# 从环境变量读取 Token（可在 .env 中配置 TOKEN=xxx）
+TOKEN: str | None = os.environ.get("TOKEN") or None
 
 BASE_URL = "https://learn.baowugroup.com/learn-gateway"
 
@@ -50,6 +76,3 @@ DEFAULT_HEADERS = {
         "Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0"
     ),
 }
-
-# 可选：预设登录 Token，避免每次运行都要扫码登录一次（不要将真实 Token 提交到版本控制）
-TOKEN = ""

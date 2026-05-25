@@ -29,3 +29,4 @@ Desktop.ini
 
 # User storage (do not commit)
 storage.json
+.env
