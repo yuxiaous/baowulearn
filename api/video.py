@@ -245,6 +245,7 @@ def mark_progress(
         "wareId": video.ware_id,
         "wareType": video.ware_type,
     }
+    print(f"打卡进度: {course.course_name} - {video.video_name} @ {secs_to_hhmmss(mark_secs)}")
     resp = client.post(url, json=payload)
     if not resp.get("isSuccess"):
         raise RuntimeError(f"进度打卡失败: {resp.get('message', resp)}")

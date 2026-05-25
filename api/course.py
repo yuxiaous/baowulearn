@@ -223,6 +223,8 @@ def get_course_finish_info(course: Course) -> Course:
 
     data = resp["data"]
     course._finish_info = data
+    if data.get("learnStatus") is not None:
+        course.learn_status = str(data["learnStatus"])
     course.course_score = float(data.get("learnScore") or 0.0)
 
     for detail in data.get("details") or []:

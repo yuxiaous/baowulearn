@@ -64,7 +64,7 @@ class MainWindow(QMainWindow):
         self._tab_data: list[dict] = []  # [{"label": str, "class_no": str|None}, ...]
         self._current_tab: int = 0
         self._current_video: Video | None = None  # 当前正在播放的视频
-        self._course_items: dict[str, QTreeWidgetItem] = {}
+        self._course_items: dict[tuple[str, str], QTreeWidgetItem] = {}
         self._video_items: dict[str, QTreeWidgetItem] = {}
         self._scheduler = _Scheduler(self)
 
@@ -138,23 +138,25 @@ class MainWindow(QMainWindow):
 
         # ── 中间课程树 ─────────────────────────────────────────────────
         self._course_tree = QTreeWidget()
-        self._course_tree.setColumnCount(5)
+        self._course_tree.setColumnCount(6)
         self._course_tree.setHeaderLabels(
-            ["课程名称", "学时", "已学时长", "课程成绩", "状态"]
+            ["序号", "课程名称", "学时", "已学时长", "课程成绩", "状态"]
         )
         self._course_tree.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self._course_tree.setRootIsDecorated(False)
 
         ch = self._course_tree.header()
-        ch.setSectionResizeMode(0, ch.ResizeMode.Stretch)
-        ch.setSectionResizeMode(1, ch.ResizeMode.Fixed)
+        ch.setSectionResizeMode(0, ch.ResizeMode.Fixed)
+        ch.setSectionResizeMode(1, ch.ResizeMode.Stretch)
         ch.setSectionResizeMode(2, ch.ResizeMode.Fixed)
         ch.setSectionResizeMode(3, ch.ResizeMode.Fixed)
         ch.setSectionResizeMode(4, ch.ResizeMode.Fixed)
-        self._course_tree.setColumnWidth(1, 60)
-        self._course_tree.setColumnWidth(2, 140)
-        self._course_tree.setColumnWidth(3, 80)
-        self._course_tree.setColumnWidth(4, 70)
+        ch.setSectionResizeMode(5, ch.ResizeMode.Fixed)
+        self._course_tree.setColumnWidth(0, 40)
+        self._course_tree.setColumnWidth(2, 60)
+        self._course_tree.setColumnWidth(3, 140)
+        self._course_tree.setColumnWidth(4, 80)
+        self._course_tree.setColumnWidth(5, 70)
 
         splitter.addWidget(self._course_tree)
 
@@ -327,20 +329,21 @@ class MainWindow(QMainWindow):
 
     def _populate_tree(self, courses: list[Course]) -> None:
         # 保留现有的挂机状态
-        hang_map: dict[str, HangStatus] = {
-            c.course_guid: c.hang_status for c in self._courses
+        hang_map: dict[tuple[str, str], HangStatus] = {
+            (c.course_no, c.class_no): c.hang_status for c in self._courses
         }
         for c in courses:
-            c.hang_status = hang_map.get(c.course_guid, HangStatus.IDLE)
+            c.hang_status = hang_map.get((c.course_no, c.class_no), HangStatus.IDLE)
 
         self._courses = courses
         self._course_tree.clear()
         self._course_items.clear()
 
-        for c in courses:
+        for idx, c in enumerate(courses, 1):
             total_str = f"{c.course_hours:.1f}"
             item = QTreeWidgetItem(
                 [
+                    str(idx),
                     c.course_name,
                     total_str,
                     self._finish_info_str(c),
@@ -348,11 +351,12 @@ class MainWindow(QMainWindow):
                     self._status_str(c),
                 ]
             )
-            for col in range(1, 5):
+            for col in range(6):
                 item.setTextAlignment(col, Qt.AlignCenter)
-            self._set_item_color(item, self._item_color(c), 5)
+            item.setTextAlignment(1, Qt.AlignLeft | Qt.AlignVCenter)
+            self._set_item_color(item, self._item_color(c), 6)
             self._course_tree.addTopLevelItem(item)
-            self._course_items[c.course_guid] = item
+            self._course_items[(c.course_no, c.class_no)] = item
 
         self._status_bar.showMessage(f"共 {len(courses)} 门课程")
 
@@ -363,7 +367,7 @@ class MainWindow(QMainWindow):
         return [
             c
             for c in self._courses
-            if self._course_items.get(c.course_guid) in selected_items
+            if self._course_items.get((c.course_no, c.class_no)) in selected_items
         ]
 
     def _add_to_queue(self) -> None:
@@ -423,25 +427,25 @@ class MainWindow(QMainWindow):
 
     def _update_finish_info_cell(self, course: Course) -> None:
         """更新指定行的已学时长、课程成绩和状态列（主线程调用）。"""
-        item = self._course_items.get(course.course_guid)
+        item = self._course_items.get((course.course_no, course.class_no))
         if item is None:
             return
         try:
-            item.setText(2, self._finish_info_str(course))
-            item.setText(3, self._score_str(course))
-            item.setText(4, self._status_str(course))
-            self._set_item_color(item, self._item_color(course), 5)
+            item.setText(3, self._finish_info_str(course))
+            item.setText(4, self._score_str(course))
+            item.setText(5, self._status_str(course))
+            self._set_item_color(item, self._item_color(course), 6)
         except Exception:  # noqa: BLE001
             pass  # 窗口已销毁，忽略
 
     def _refresh_tree_tags(self) -> None:
         """刷新行颜色和 已学时长 列，避免重新请求接口。队列为空时重置状态栏。"""
         for c in self._courses:
-            item = self._course_items.get(c.course_guid)
+            item = self._course_items.get((c.course_no, c.class_no))
             if item is None:
                 continue
-            self._set_item_color(item, self._item_color(c), 5)
-            item.setText(4, self._status_str(c))
+            self._set_item_color(item, self._item_color(c), 6)
+            item.setText(5, self._status_str(c))
             self._update_finish_info_cell(c)
         if not self._queue_mgr.is_running:
             self._status_bar.showMessage("就绪")
