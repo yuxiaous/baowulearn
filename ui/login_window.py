@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import threading
-from typing import Callable
 
-from PySide6.QtCore import QObject, Qt, Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QDialog,
@@ -23,34 +22,30 @@ from api import auth
 from core import storage
 
 
-class _Scheduler(QObject):
-    """将任意可调用对象调度到主线程执行（线程安全）。"""
-
-    _call: Signal = Signal(object)
-
-    def __init__(self, parent: QObject | None = None) -> None:
-        super().__init__(parent)
-        self._call.connect(self._execute, Qt.QueuedConnection)
-
-    def schedule(self, fn: Callable) -> None:
-        self._call.emit(fn)
-
-    def _execute(self, fn: Callable) -> None:
-        fn()
-
-
 class LoginWindow(QDialog):
-    def __init__(
-        self,
-        on_login_success: Callable[[], None],
-        parent: QWidget | None = None,
-    ) -> None:
+    """登录成功后发出 login_success 信号。"""
+
+    login_success = Signal()
+
+    # 后台线程向主线程传递结果的内部信号
+    _captcha_ready = Signal(QPixmap)
+    _captcha_error = Signal(str)
+    _login_ok = Signal()
+    _login_failed_sig = Signal(str)
+
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("宝武学习系统 — 登录")
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
-        self._on_success = on_login_success
         self._captcha_id: str = ""
-        self._scheduler = _Scheduler(self)
+
+        # 连接内部信号到各自的槽
+        self._captcha_ready.connect(self._set_captcha_image)
+        self._captcha_error.connect(
+            lambda m: self._captcha_label.setText(f"加载失败\n{m}")
+        )
+        self._login_ok.connect(self._handle_login_success)
+        self._login_failed_sig.connect(self._handle_login_fail)
 
         self._build_ui()
         self._restore_credentials()
@@ -132,12 +127,9 @@ class LoginWindow(QDialog):
             pixmap = QPixmap()
             pixmap.loadFromData(img_bytes)
             scaled = pixmap.scaledToWidth(120, Qt.SmoothTransformation)
-            self._scheduler.schedule(lambda p=scaled: self._set_captcha_image(p))
+            self._captcha_ready.emit(scaled)
         except Exception as exc:  # noqa: BLE001
-            msg = str(exc)
-            self._scheduler.schedule(
-                lambda m=msg: self._captcha_label.setText(f"加载失败\n{m}")
-            )
+            self._captcha_error.emit(str(exc))
 
     def _set_captcha_image(self, pixmap: QPixmap) -> None:
         self._captcha_label.setPixmap(pixmap)
@@ -176,15 +168,14 @@ class LoginWindow(QDialog):
     def _do_login(self, user: str, pwd: str, captcha: str, captcha_id: str) -> None:
         try:
             auth.login(user, pwd, captcha, captcha_id)
-            self._scheduler.schedule(self._handle_login_success)
+            self._login_ok.emit()
         except Exception as exc:  # noqa: BLE001
-            msg = str(exc)
-            self._scheduler.schedule(lambda m=msg: self._handle_login_fail(m))
+            self._login_failed_sig.emit(str(exc))
 
     def _handle_login_success(self) -> None:
         storage.save_credentials(self._user_edit.text().strip(), self._pwd_edit.text())
+        self.login_success.emit()
         self.accept()
-        self._on_success()
 
     def _handle_login_fail(self, msg: str) -> None:
         QMessageBox.critical(self, "登录失败", msg)

@@ -1,3 +1,14 @@
+[project]
+name = "baowulearn"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "requests",
+    "gmssl",
+    "tinydb",
+    "pyside6",
+]
+
 [tool.ruff]
 line-length = 100
 

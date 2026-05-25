@@ -68,10 +68,7 @@ def get_course_videos(course: Course) -> list[Video]:
     idx = 0
     for chapter in resp.get("data", []):
         for item in chapter.get("content", []):
-            if (
-                str(item.get("contentType")) == "1"
-                and str(item.get("status", "1")) == "1"
-            ):
+            if str(item.get("contentType")) == "1" and str(item.get("status")) == "1":
                 videos.append(
                     Video(
                         video_guid=str(item.get("guid", "")),
@@ -107,6 +104,7 @@ def init_learn_record(course: Course, page_id: str) -> None:
         "olClassNo": course.class_no,
         "pageId": page_id,
     }
+    print(f"初始化学习记录: {course.course_name}")
     resp = client.post(url, json=payload)
     if not resp.get("isSuccess"):
         raise RuntimeError(f"初始化学习记录失败: {resp.get('message', resp)}")
@@ -139,6 +137,7 @@ def get_play_progress(course: Course, video: Video) -> int:
 
     data = resp["data"]
     max_time = hhmmss_to_secs(data.get("maxPlayTime", "00:00:00"))
+    video.play_progress = max_time
     return max_time
 
 
@@ -163,6 +162,7 @@ def start_video(course: Course, video: Video, begin_secs: int = 0) -> None:
         "wareId": video.ware_id,
         "wareType": video.ware_type,
     }
+    print(f"开始播放视频: {video.video_name} @ {secs_to_hhmmss(begin_secs)}")
     resp = client.post(url, json=payload)
     if not resp.get("isSuccess"):
         raise RuntimeError(f"开始播放视频失败: {resp.get('message', resp)}")
@@ -183,6 +183,7 @@ def end_video(course: Course, video: Video, end_secs: int) -> None:
         "wareId": video.ware_id,
         "wareType": video.ware_type,
     }
+    print(f"停止播放视频: {video.video_name} @ {secs_to_hhmmss(end_secs)}")
     resp = client.post(url, json=payload)
     if not resp.get("isSuccess"):
         raise RuntimeError(f"停止播放视频失败: {resp.get('message', resp)}")
@@ -219,6 +220,7 @@ def send_heartbeat(
         "wareId": video.ware_id,
         "wareType": video.ware_type,
     }
+    print(f"发送心跳: {video.video_name} @ {secs_to_hhmmss(cur_secs)} (+{learn_time}s)")
     resp = client.post(url, json=payload)
     if not resp.get("isSuccess"):
         raise RuntimeError(f"发送心跳失败: {resp.get('message', resp)}")
@@ -245,7 +247,7 @@ def mark_progress(
         "wareId": video.ware_id,
         "wareType": video.ware_type,
     }
-    print(f"打卡进度: {course.course_name} - {video.video_name} @ {secs_to_hhmmss(mark_secs)}")
+    print(f"打卡进度: {video.video_name} @ {secs_to_hhmmss(mark_secs)}")
     resp = client.post(url, json=payload)
     if not resp.get("isSuccess"):
         raise RuntimeError(f"进度打卡失败: {resp.get('message', resp)}")
@@ -254,13 +256,14 @@ def mark_progress(
 # ── 完成视频 ──────────────────────────────────────────────────────────────────
 
 
-def complete_video(course: Course) -> None:
+def complete_video(course: Course, video: Video) -> None:
     """发送视频完成信号。"""
     url = "/service/tms/ols/computeTask/saveComputeTask4AfterVideoPlayed"
     payload = {
         "classNo": course.class_no,
         "courseNo": course.course_no,
     }
+    print(f"完成视频: {video.video_name}")
     resp = client.post(url, json=payload)
     if not resp.get("isSuccess"):
         raise RuntimeError(f"完成视频失败: {resp.get('message', resp)}")

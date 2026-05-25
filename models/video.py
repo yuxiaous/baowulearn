@@ -15,7 +15,7 @@ class Video:
     cata_no: str
     cata_type: str
     ware_id: str  # wareCode/wareId
-    ware_type: str  # wareType（始终为 "1"）
+    ware_type: str  # wareType（"1"视频，"2"文档pdf）
 
     course_no: str  # courseNo — 课程编号
     tenant_code: str  # tenantCode — 租户编码

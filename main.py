@@ -24,19 +24,20 @@ def main() -> None:
     _state: dict = {"main_win": None}
 
     def open_main_window() -> None:
-        def on_logout() -> None:
+        win = MainWindow()
+
+        def _on_logout() -> None:
             client.clear_token()
-            if _state["main_win"]:
-                _state["main_win"].close()
-                _state["main_win"] = None
+            _state["main_win"] = None
             open_login_window()
 
-        win = MainWindow(on_logout=on_logout)
+        win.logout_requested.connect(_on_logout)
         win.show()
         _state["main_win"] = win
 
     def open_login_window() -> None:
-        dlg = LoginWindow(on_login_success=open_main_window)
+        dlg = LoginWindow()
+        dlg.login_success.connect(open_main_window)
         dlg.show()
 
         def _on_finished(_result: int) -> None:

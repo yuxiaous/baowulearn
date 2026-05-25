@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Callable
 
-from PySide6.QtCore import QObject, Qt, Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -35,30 +34,23 @@ _COLOR_WAITING = QColor("#0055cc")
 _COLOR_COMPLETED = QColor("gray")
 
 
-class _Scheduler(QObject):
-    """将任意可调用对象调度到主线程执行（线程安全）。"""
-
-    _call: Signal = Signal(object)
-
-    def __init__(self, parent: QObject | None = None) -> None:
-        super().__init__(parent)
-        self._call.connect(self._execute, Qt.QueuedConnection)
-
-    def schedule(self, fn: Callable) -> None:
-        self._call.emit(fn)
-
-    def _execute(self, fn: Callable) -> None:
-        fn()
-
-
 class MainWindow(QMainWindow):
-    def __init__(self, on_logout: Callable[[], None] | None = None) -> None:
+    """退出登录时发出 logout_requested 信号。"""
+
+    logout_requested = Signal()
+
+    # 后台线程向主线程传递数据的内部信号
+    _tabs_fetched = Signal(list)                     # list[OLClass]
+    _courses_page = Signal(int, list, int, bool)     # gen, courses, total, is_last
+    _finish_info_cell = Signal(int, object)          # gen, course
+    _fetch_error = Signal(int, str)                  # gen, message
+
+    def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("宝武学习系统")
         self.resize(1136, 640)
         self.setMinimumSize(620, 380)
 
-        self._on_logout = on_logout
         self._courses: list[Course] = []
         self._fetch_gen: int = 0  # 每次刷新递增，用于取消旧的 finishInfo 批量拉取
         self._tab_data: list[dict] = []  # [{"label": str, "class_no": str|None}, ...]
@@ -66,17 +58,20 @@ class MainWindow(QMainWindow):
         self._current_video: Video | None = None  # 当前正在播放的视频
         self._course_items: dict[tuple[str, str], QTreeWidgetItem] = {}
         self._video_items: dict[str, QTreeWidgetItem] = {}
-        self._scheduler = _Scheduler(self)
 
-        self._queue_mgr = QueueManager(
-            schedule_ui=self._scheduler.schedule,
-            on_state_change=self._refresh_tree_tags,
-            on_progress=self._on_hang_progress,
-            on_error=self._on_hang_error,
-            on_video_start=self._on_video_start,
-            on_video_complete=self._on_video_complete,
-            on_videos_loaded=self._on_videos_loaded,
-        )
+        self._queue_mgr = QueueManager(self)
+        self._queue_mgr.state_changed.connect(self._refresh_tree_tags)
+        self._queue_mgr.video_progress.connect(self._on_hang_progress)
+        self._queue_mgr.error_occurred.connect(self._on_hang_error)
+        self._queue_mgr.video_started.connect(self._on_video_start)
+        self._queue_mgr.video_completed.connect(self._on_video_complete)
+        self._queue_mgr.videos_loaded.connect(self._on_videos_loaded)
+
+        # 连接内部信号
+        self._tabs_fetched.connect(self._add_class_tabs)
+        self._courses_page.connect(self._on_courses_page)
+        self._finish_info_cell.connect(self._on_finish_info_cell)
+        self._fetch_error.connect(self._on_fetch_error)
 
         self._build_ui()
         self._load_tabs()
@@ -112,10 +107,9 @@ class MainWindow(QMainWindow):
 
         toolbar_layout.addStretch()
 
-        if self._on_logout:
-            btn_logout = QPushButton("退出")
-            btn_logout.clicked.connect(self._logout)
-            toolbar_layout.addWidget(btn_logout)
+        btn_logout = QPushButton("退出")
+        btn_logout.clicked.connect(self._logout)
+        toolbar_layout.addWidget(btn_logout)
 
         layout.addLayout(toolbar_layout)
 
@@ -238,7 +232,7 @@ class MainWindow(QMainWindow):
         """后台拉取专区列表，追加到标签栏。"""
         try:
             classes = course_api.get_my_classes()
-            self._scheduler.schedule(lambda c=classes: self._add_class_tabs(c))
+            self._tabs_fetched.emit(classes)
         except Exception:  # noqa: BLE001
             pass
 
@@ -288,18 +282,7 @@ class MainWindow(QMainWindow):
                 all_courses.extend(courses)
                 courses = all_courses
                 is_last = page >= total_pages
-
-                def _update(
-                    c=list(all_courses),
-                    n=len(all_courses),
-                    t=total_courses,
-                    last=is_last,
-                ) -> None:
-                    self._populate_tree(c)
-                    if not last:
-                        self._status_bar.showMessage(f"加载中… {n}/{t} 门课程")
-
-                self._scheduler.schedule(_update)
+                self._courses_page.emit(gen, list(all_courses), total_courses, is_last)
                 page += 1
 
             # 并发拉取每门课的完成情况（最多 8 个并发请求）
@@ -316,16 +299,11 @@ class MainWindow(QMainWindow):
                         break
                     try:
                         c = future.result()
-                        self._scheduler.schedule(
-                            lambda cc=c: self._update_finish_info_cell(cc)
-                        )
+                        self._finish_info_cell.emit(gen, c)
                     except Exception:  # noqa: BLE001
                         pass
         except Exception as exc:  # noqa: BLE001
-            msg = str(exc)
-            self._scheduler.schedule(
-                lambda m=msg: self._status_bar.showMessage(f"加载失败: {m}")
-            )
+            self._fetch_error.emit(gen, str(exc))
 
     def _populate_tree(self, courses: list[Course]) -> None:
         # 保留现有的挂机状态
@@ -359,6 +337,28 @@ class MainWindow(QMainWindow):
             self._course_items[(c.course_no, c.class_no)] = item
 
         self._status_bar.showMessage(f"共 {len(courses)} 门课程")
+
+    def _on_courses_page(
+        self, gen: int, courses: list[Course], total_count: int, is_last: bool
+    ) -> None:
+        """接收分页课程数据（主线程槽）。"""
+        if gen != self._fetch_gen:
+            return
+        self._populate_tree(courses)
+        if not is_last:
+            self._status_bar.showMessage(f"加载中… {len(courses)}/{total_count} 门课程")
+
+    def _on_finish_info_cell(self, gen: int, course: Course) -> None:
+        """接收单门课程的完成情况更新（主线程槽）。"""
+        if gen != self._fetch_gen:
+            return
+        self._update_finish_info_cell(course)
+
+    def _on_fetch_error(self, gen: int, msg: str) -> None:
+        """接收课程加载错误（主线程槽）。"""
+        if gen != self._fetch_gen:
+            return
+        self._status_bar.showMessage(f"加载失败: {msg}")
 
     # ── 按钮操作 ─────────────────────────────────────────────────────────────────
 
@@ -400,10 +400,9 @@ class MainWindow(QMainWindow):
         self._queue_mgr.stop_all()
 
     def _logout(self) -> None:
-        """先停止全部挂机任务，再执行退出回调，避免后台线程访问已销毁的窗口。"""
+        """先停止全部挂机任务，再发出退出信号。"""
         self._queue_mgr.stop_all()
-        if self._on_logout:
-            self._on_logout()
+        self.logout_requested.emit()
 
     # ── 挂机回调（在主线程执行）──────────────────────────────────────────────────
 
