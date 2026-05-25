@@ -78,9 +78,6 @@ class HeartbeatWorker:
                 self._listener.on_error(course, "课程没有可用视频")
                 return
 
-            for video in videos:
-                video_api.get_play_progress(course, video)
-
             self._listener.on_videos_loaded(course, videos)
 
             self._heartbeat_interval = video_api.get_heartbeat_interval()
@@ -91,20 +88,19 @@ class HeartbeatWorker:
                 if self._stop_event.is_set():
                     break
 
+                # 轮到该视频时才查询播放进度，并立即更新界面显示
+                start_secs = video_api.get_play_progress(course, video)
+                self._listener.on_video_progress(course, video, start_secs, video.duration)
+
+                # 已到达或超过视频末尾 → 该视频已完成，跳过
+                if start_secs >= video.duration:
+                    continue
+
                 # 当前视频已完成，跳过
                 if video.learned_status == "1":
                     continue
 
-                # 已到达或超过视频末尾 → 该视频已完成，跳过
-                start_secs = video_api.get_play_progress(self._course, video)
-                if start_secs >= video.duration:
-                    continue
-
                 self._watch_video(video, start_secs)
-
-            # 全部视频结束后，检查是否需要补播以达到课程总时长
-            if not self._stop_event.is_set():
-                self._topup_if_needed(videos)
 
         except Exception as exc:  # noqa: BLE001
             self._listener.on_error(course, str(exc))
@@ -191,8 +187,6 @@ class HeartbeatWorker:
             return
         if self._stop_event.is_set():
             return
-
-        # self._watch_videos(videos)
 
     def _refresh_finish_info(self) -> None:
         """触发服务端重算。"""
