@@ -28,6 +28,7 @@ from core.queue_manager import QueueManager
 from models.course import Course, HangStatus
 from models.olclass import OLClass
 from models.video import Video
+import config
 
 _COLOR_HANGING = QColor("#0a7a0a")
 _COLOR_WAITING = QColor("#0055cc")
@@ -40,14 +41,14 @@ class MainWindow(QMainWindow):
     logout_requested = Signal()
 
     # 后台线程向主线程传递数据的内部信号
-    _tabs_fetched = Signal(list)                     # list[OLClass]
-    _courses_page = Signal(int, list, int, bool)     # gen, courses, total, is_last
-    _finish_info_cell = Signal(int, object)          # gen, course
-    _fetch_error = Signal(int, str)                  # gen, message
+    _tabs_fetched = Signal(list)  # list[OLClass]
+    _courses_page = Signal(int, list, int, bool)  # gen, courses, total, is_last
+    _finish_info_cell = Signal(int, object)  # gen, course
+    _fetch_error = Signal(int, str)  # gen, message
 
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("宝武学习系统")
+        self.setWindowTitle(f"宝武学习系统 V{config.VERSION}")
         self.resize(1136, 640)
         self.setMinimumSize(620, 380)
 
@@ -207,9 +208,7 @@ class MainWindow(QMainWindow):
         return None
 
     @staticmethod
-    def _set_item_color(
-        item: QTreeWidgetItem, color: QColor | None, col_count: int
-    ) -> None:
+    def _set_item_color(item: QTreeWidgetItem, color: QColor | None, col_count: int) -> None:
         for i in range(col_count):
             if color is not None:
                 item.setForeground(i, QBrush(color))
@@ -256,9 +255,7 @@ class MainWindow(QMainWindow):
 
     def _fetch_courses(self) -> None:
         gen = self._fetch_gen
-        tab = (
-            self._tab_data[self._current_tab] if self._tab_data else {"class_no": None}
-        )
+        tab = self._tab_data[self._current_tab] if self._tab_data else {"class_no": None}
         class_no = tab.get("class_no")
 
         try:
@@ -377,14 +374,10 @@ class MainWindow(QMainWindow):
             return
         for c in courses:
             already_done = (
-                c.course_finished >= c.course_duration
-                if c.course_duration > 0
-                else c.is_completed
+                c.course_finished >= c.course_duration if c.course_duration > 0 else c.is_completed
             )
             if already_done:
-                QMessageBox.warning(
-                    self, "提示", f"《{c.course_name}》已完成，无需挂机"
-                )
+                QMessageBox.warning(self, "提示", f"《{c.course_name}》已完成，无需挂机")
                 continue
             self._queue_mgr.enqueue(c)
 
@@ -406,9 +399,7 @@ class MainWindow(QMainWindow):
 
     # ── 挂机回调（在主线程执行）──────────────────────────────────────────────────
 
-    def _on_hang_progress(
-        self, course: Course, video: Video, elapsed: int, total: int
-    ) -> None:
+    def _on_hang_progress(self, course: Course, video: Video, elapsed: int, total: int) -> None:
         """每秒刷新状态栏进度；同步刷新行内容。"""
         pct = elapsed * 100 // total if total else 0
         self._status_bar.showMessage(

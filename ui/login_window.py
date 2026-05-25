@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 
 from api import auth
 from core import storage
+import config
 
 
 class LoginWindow(QDialog):
@@ -35,15 +36,16 @@ class LoginWindow(QDialog):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("宝武学习系统 — 登录")
-        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        self.setWindowTitle(f"宝武学习系统 V{config.VERSION}")
+        self.setWindowFlags(
+            self.windowFlags() & ~Qt.WindowContextHelpButtonHint | Qt.WindowCloseButtonHint
+        )
+
         self._captcha_id: str = ""
 
         # 连接内部信号到各自的槽
         self._captcha_ready.connect(self._set_captcha_image)
-        self._captcha_error.connect(
-            lambda m: self._captcha_label.setText(f"加载失败\n{m}")
-        )
+        self._captcha_error.connect(lambda m: self._captcha_label.setText(f"加载失败\n{m}"))
         self._login_ok.connect(self._handle_login_success)
         self._login_failed_sig.connect(self._handle_login_fail)
 

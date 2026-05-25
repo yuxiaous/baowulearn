@@ -2,13 +2,33 @@
 宝武学习系统挂课工具 — 全局配置
 """
 
+import pathlib
+import re
+import sys
+
+
+def _read_version() -> str:
+    if getattr(sys, "frozen", False):
+        # 打包成 exe 后，pyproject.toml 被放在 sys._MEIPASS 目录下
+        base = pathlib.Path(sys._MEIPASS)  # type: ignore[attr-defined]
+    else:
+        base = pathlib.Path(__file__).parent
+    try:
+        text = (base / "pyproject.toml").read_text(encoding="utf-8")
+        m = re.search(r'^version\s*=\s*"([^"]+)"', text, re.MULTILINE)
+        return m.group(1) if m else "unknown"
+    except OSError:
+        return "unknown"
+
+
+VERSION: str = _read_version()
+
 BASE_URL = "https://learn.baowugroup.com/learn-gateway"
 
 # SM2 非对称加密公钥 (base64编码)，从前端 JS 中提取
 # JS 来源: const zi = {sm2PublicKey: "...", algorithm: "SM2"}
 SM2_PUBLIC_KEY_B64 = (
-    "BJeYoHWNsf60Vr2wPJWEWRvjH6m5r/JvK7Pww8SdohnwAkHKVy0tikYYOYmuKhR83BUS"
-    "+duMyjAbVtyXZTfc+jY="
+    "BJeYoHWNsf60Vr2wPJWEWRvjH6m5r/JvK7Pww8SdohnwAkHKVy0tikYYOYmuKhR83BUS+duMyjAbVtyXZTfc+jY="
 )
 
 # 请求头
@@ -32,4 +52,4 @@ DEFAULT_HEADERS = {
 }
 
 # 可选：预设登录 Token，避免每次运行都要扫码登录一次（不要将真实 Token 提交到版本控制）
-# TOKEN = ""
+TOKEN = ""
