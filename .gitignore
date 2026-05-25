@@ -27,5 +27,5 @@ build/
 Thumbs.db
 Desktop.ini
 
-# User credentials (do not commit)
-data/credentials.json
+# User storage (do not commit)
+storage.json
