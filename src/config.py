@@ -8,13 +8,24 @@ import re
 import sys
 
 
-def _read_version() -> str:
+def base_dir() -> pathlib.Path:
+    """打包时返回 _MEIPASS（资源目录），开发时返回项目根目录。"""
     if getattr(sys, "frozen", False):
-        base = pathlib.Path(sys._MEIPASS)  # type: ignore[attr-defined]
-    else:
-        base = pathlib.Path(__file__).parent.parent
+        return pathlib.Path(sys._MEIPASS)
+    return pathlib.Path(__file__).parent.parent
+
+
+def exe_dir() -> pathlib.Path:
+    """打包时返回 exe 所在目录（用户可写），开发时返回项目根目录。"""
+    if getattr(sys, "frozen", False):
+        return pathlib.Path(sys.executable).parent
+    return pathlib.Path(__file__).parent.parent
+
+
+def _read_version() -> str:
+    project_file = base_dir() / "pyproject.toml"
     try:
-        text = (base / "pyproject.toml").read_text(encoding="utf-8")
+        text = project_file.read_text(encoding="utf-8")
         m = re.search(r'^version\s*=\s*"([^"]+)"', text, re.MULTILINE)
         return m.group(1) if m else "unknown"
     except OSError:
@@ -23,12 +34,7 @@ def _read_version() -> str:
 
 def _load_dotenv() -> None:
     """从 .env 文件加载环境变量，不覆盖已存在的系统变量。"""
-    if getattr(sys, "frozen", False):
-        # exe 运行时，.env 放在 exe 同级目录
-        base = pathlib.Path(sys.executable).parent
-    else:
-        base = pathlib.Path(__file__).parent.parent
-    env_file = base / ".env"
+    env_file = exe_dir() / ".env"
     if not env_file.exists():
         return
     for line in env_file.read_text(encoding="utf-8").splitlines():
@@ -47,13 +53,7 @@ _load_dotenv()
 VERSION: str = _read_version()
 
 
-def _assets_dir() -> pathlib.Path:
-    if getattr(sys, "frozen", False):
-        return pathlib.Path(sys._MEIPASS) / "assets"  # type: ignore[attr-defined]
-    return pathlib.Path(__file__).parent.parent / "assets"
-
-
-ASSETS_DIR: pathlib.Path = _assets_dir()
+ASSETS_DIR: pathlib.Path = base_dir() / "assets"
 
 # 从环境变量读取 Token（可在 .env 中配置 TOKEN=xxx）
 TOKEN: str | None = os.environ.get("TOKEN") or None

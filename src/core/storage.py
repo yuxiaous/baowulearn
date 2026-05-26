@@ -8,18 +8,11 @@
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 from tinydb import TinyDB
 
-# 打包为 exe 时用 executable 所在目录，开发时用项目根目录
-if getattr(sys, "frozen", False):
-    _BASE_DIR = Path(sys.executable).parent
-else:
-    _BASE_DIR = Path(__file__).parent.parent.parent
+import config
 
-_DB_PATH = _BASE_DIR / "storage.json"
+_DB_PATH = config.exe_dir() / "storage.json"
 
 
 def _get_db() -> TinyDB:
