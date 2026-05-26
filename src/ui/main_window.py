@@ -136,7 +136,7 @@ class MainWindow(QMainWindow):
         self._course_tree = QTreeWidget()
         self._course_tree.setColumnCount(6)
         self._course_tree.setHeaderLabels(
-            ["序号", "课程名称", "学时", "已学时长", "课程成绩", "状态"]
+            ["序号", "课程名称", "学时", "课程成绩", "已学时长", "状态"]
         )
         self._course_tree.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self._course_tree.setRootIsDecorated(False)
@@ -151,8 +151,8 @@ class MainWindow(QMainWindow):
         ch.setSectionResizeMode(5, ch.ResizeMode.Fixed)
         self._course_tree.setColumnWidth(0, 40)
         self._course_tree.setColumnWidth(2, 60)
-        self._course_tree.setColumnWidth(3, 140)
-        self._course_tree.setColumnWidth(4, 80)
+        self._course_tree.setColumnWidth(3, 80)
+        self._course_tree.setColumnWidth(4, 140)
         self._course_tree.setColumnWidth(5, 70)
 
         splitter.addWidget(self._course_tree)
@@ -178,7 +178,7 @@ class MainWindow(QMainWindow):
     # ── 数据加载 ──────────────────────────────────────────────────────────────────────
 
     @staticmethod
-    def _status_str(course: Course) -> str:
+    def _course_status_str(course: Course) -> str:
         """状态列显示文字。"""
         if course.hang_status == HangStatus.HANGING:
             return "挂机中"
@@ -187,18 +187,25 @@ class MainWindow(QMainWindow):
         return "已完成" if course.is_completed else "未完成"
 
     @staticmethod
-    def _score_str(course: Course) -> str:
+    def _course_score_str(course: Course) -> str:
         """从 course_score 取课程成绩。"""
         if course.course_score:
             return f"{course.course_score:.2f}"
         return "-"
 
     @staticmethod
-    def _finish_info_str(course: Course) -> str:
+    def _course_finish_str(course: Course) -> str:
         """将课程已学时长格式化为显示字符串。"""
         if course.course_duration > 0:
             return f"{course.course_finished:.2f}/{course.course_duration:.2f}分钟"
-        return ""
+        return "-"
+
+    @staticmethod
+    def _course_hours_str(course: Course) -> str:
+        """将课程学时格式化为显示字符串。"""
+        if course.course_hours > 0:
+            return f"{course.course_hours:.1f}"
+        return "-"
 
     @staticmethod
     def _item_color(course: Course) -> QColor | None:
@@ -318,15 +325,14 @@ class MainWindow(QMainWindow):
         self._course_items.clear()
 
         for idx, c in enumerate(courses, 1):
-            total_str = f"{c.course_hours:.1f}"
             item = QTreeWidgetItem(
                 [
                     str(idx),
                     c.course_name,
-                    total_str,
-                    self._finish_info_str(c),
-                    self._score_str(c),
-                    self._status_str(c),
+                    self._course_hours_str(c),
+                    self._course_score_str(c),
+                    self._course_finish_str(c),
+                    self._course_status_str(c),
                 ]
             )
             for col in range(6):
@@ -419,14 +425,14 @@ class MainWindow(QMainWindow):
         self._status_bar.showMessage("就绪")
 
     def _update_finish_info_cell(self, course: Course) -> None:
-        """更新指定行的已学时长、课程成绩和状态列（主线程调用）。"""
+        """更新指定行的课程成绩、已学时长和状态列（主线程调用）。"""
         item = self._course_items.get((course.course_no, course.class_no))
         if item is None:
             return
         try:
-            item.setText(3, self._finish_info_str(course))
-            item.setText(4, self._score_str(course))
-            item.setText(5, self._status_str(course))
+            item.setText(3, self._course_score_str(course))
+            item.setText(4, self._course_finish_str(course))
+            item.setText(5, self._course_status_str(course))
             self._set_item_color(item, self._item_color(course), 6)
         except Exception:  # noqa: BLE001
             pass  # 窗口已销毁，忽略
@@ -438,7 +444,7 @@ class MainWindow(QMainWindow):
             if item is None:
                 continue
             self._set_item_color(item, self._item_color(c), 6)
-            item.setText(5, self._status_str(c))
+            item.setText(5, self._course_status_str(c))
             self._update_finish_info_cell(c)
         if not self._queue_mgr.is_running:
             self._status_bar.showMessage("就绪")
