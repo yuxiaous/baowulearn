@@ -1,4 +1,0 @@
-requests
-gmssl
-tinydb
-pyside6
