@@ -99,7 +99,7 @@ class MainWindow(QMainWindow):
         btn_add.clicked.connect(self._add_to_queue)
         toolbar_layout.addWidget(btn_add)
 
-        btn_remove = QPushButton("从队列移除")
+        btn_remove = QPushButton("移出队列")
         btn_remove.clicked.connect(self._remove_from_queue)
         toolbar_layout.addWidget(btn_remove)
 
