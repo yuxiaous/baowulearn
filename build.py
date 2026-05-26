@@ -38,7 +38,7 @@ def main() -> None:
             "--windowed",
             "--name", "baowulearn",
             "--add-data", f"pyproject.toml{sep}.",
-            "main.py",
+            "src/main.py",
         ],
         cwd=ROOT,
         check=True,

@@ -12,7 +12,7 @@ def _read_version() -> str:
     if getattr(sys, "frozen", False):
         base = pathlib.Path(sys._MEIPASS)  # type: ignore[attr-defined]
     else:
-        base = pathlib.Path(__file__).parent
+        base = pathlib.Path(__file__).parent.parent
     try:
         text = (base / "pyproject.toml").read_text(encoding="utf-8")
         m = re.search(r'^version\s*=\s*"([^"]+)"', text, re.MULTILINE)
@@ -27,7 +27,7 @@ def _load_dotenv() -> None:
         # exe 运行时，.env 放在 exe 同级目录
         base = pathlib.Path(sys.executable).parent
     else:
-        base = pathlib.Path(__file__).parent
+        base = pathlib.Path(__file__).parent.parent
     env_file = base / ".env"
     if not env_file.exists():
         return

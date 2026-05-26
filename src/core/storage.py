@@ -17,7 +17,7 @@ from tinydb import TinyDB
 if getattr(sys, "frozen", False):
     _BASE_DIR = Path(sys.executable).parent
 else:
-    _BASE_DIR = Path(__file__).parent.parent
+    _BASE_DIR = Path(__file__).parent.parent.parent
 
 _DB_PATH = _BASE_DIR / "storage.json"
 
