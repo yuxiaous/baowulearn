@@ -46,6 +46,15 @@ _load_dotenv()
 
 VERSION: str = _read_version()
 
+
+def _assets_dir() -> pathlib.Path:
+    if getattr(sys, "frozen", False):
+        return pathlib.Path(sys._MEIPASS) / "assets"  # type: ignore[attr-defined]
+    return pathlib.Path(__file__).parent.parent / "assets"
+
+
+ASSETS_DIR: pathlib.Path = _assets_dir()
+
 # 从环境变量读取 Token（可在 .env 中配置 TOKEN=xxx）
 TOKEN: str | None = os.environ.get("TOKEN") or None
 

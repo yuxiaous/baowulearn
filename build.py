@@ -20,29 +20,27 @@ def main() -> None:
     )
 
     # 清理旧的输出目录，若被占用则提示关闭 exe
-    dist_dir = ROOT / "dist" / "baowulearn"
-    if dist_dir.exists():
-        try:
-            shutil.rmtree(dist_dir)
-        except PermissionError:
-            print("错误：dist/baowulearn 目录被占用，请先关闭正在运行的 baowulearn.exe，再重试。")
-            sys.exit(1)
+    for clean_dir in [
+        ROOT / "dist" / "baowulearn",
+        ROOT / "build" / "baowulearn",
+    ]:
+        if clean_dir.exists():
+            try:
+                shutil.rmtree(clean_dir)
+            except PermissionError:
+                print(f"错误：{clean_dir} 目录被占用，请先关闭正在运行的 baowulearn.exe，再重试。")
+                sys.exit(1)
 
     sep = ";" if sys.platform == "win32" else ":"
 
-    subprocess.run(
-        [
-            sys.executable, "-m", "PyInstaller",
-            "--noconfirm",
-            "--onedir",
-            "--windowed",
-            "--name", "baowulearn",
-            "--add-data", f"pyproject.toml{sep}.",
-            "src/main.py",
-        ],
-        cwd=ROOT,
-        check=True,
-    )
+    args = [sys.executable, "-m", "PyInstaller"]
+    args += ["--noconfirm", "--onedir", "--windowed"]
+    args += ["--name", "baowulearn"]
+    args += ["--icon", str(ROOT / "assets" / "favicon.ico")]
+    args += ["--add-data", f"pyproject.toml{sep}."]
+    args += ["--add-data", f"assets{sep}assets"]
+    args += ["src/main.py"]
+    subprocess.run(args, cwd=ROOT, check=True)
 
     exe = "baowulearn.exe" if sys.platform == "win32" else "baowulearn"
     print(f"\n打包完成，输出目录：dist/baowulearn/，入口：dist/baowulearn/{exe}")

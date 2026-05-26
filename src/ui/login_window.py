@@ -5,7 +5,7 @@ from __future__ import annotations
 import threading
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtWidgets import (
     QDialog,
     QFormLayout,
@@ -37,6 +37,7 @@ class LoginWindow(QDialog):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle(f"宝武学习系统 V{config.VERSION}")
+        self.setWindowIcon(QIcon(str(config.ASSETS_DIR / "favicon.ico")))
         self.setWindowFlags(
             self.windowFlags() & ~Qt.WindowContextHelpButtonHint | Qt.WindowCloseButtonHint
         )

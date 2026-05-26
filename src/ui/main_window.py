@@ -6,7 +6,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QBrush, QColor
+from PySide6.QtGui import QBrush, QColor, QIcon
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QHBoxLayout,
@@ -49,6 +49,7 @@ class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle(f"宝武学习系统 V{config.VERSION}")
+        self.setWindowIcon(QIcon(str(config.ASSETS_DIR / "favicon.ico")))
         self.resize(1136, 640)
         self.setMinimumSize(620, 380)
 
