@@ -126,7 +126,7 @@ class MainWindow(QMainWindow):
 
         # ── 左侧专区列表 ────────────────────────────────────────────────────────
         self._olclass_listbox = QListWidget()
-        self._olclass_listbox.setMaximumWidth(180)
+        self._olclass_listbox.setMaximumWidth(280)
         self._olclass_listbox.setMinimumWidth(60)
         self._olclass_listbox.currentRowChanged.connect(self._on_tab_select)
         splitter.addWidget(self._olclass_listbox)
@@ -141,6 +141,7 @@ class MainWindow(QMainWindow):
         self._course_tree.setRootIsDecorated(False)
 
         ch = self._course_tree.header()
+        ch.setStretchLastSection(False)
         ch.setSectionResizeMode(0, ch.ResizeMode.Fixed)
         ch.setSectionResizeMode(1, ch.ResizeMode.Stretch)
         ch.setSectionResizeMode(2, ch.ResizeMode.Fixed)
@@ -161,16 +162,17 @@ class MainWindow(QMainWindow):
         self._video_tree.setHeaderLabels(["视频名称", "进度"])
         self._video_tree.setSelectionMode(QAbstractItemView.NoSelection)
         self._video_tree.setRootIsDecorated(False)
-        self._video_tree.setMaximumWidth(320)
+        self._video_tree.setMaximumWidth(300)
         self._video_tree.setMinimumWidth(80)
 
         vh = self._video_tree.header()
+        vh.setStretchLastSection(False)
         vh.setSectionResizeMode(0, vh.ResizeMode.Stretch)
         vh.setSectionResizeMode(1, vh.ResizeMode.Fixed)
         self._video_tree.setColumnWidth(1, 90)
 
         splitter.addWidget(self._video_tree)
-        splitter.setSizes([150, 700, 280])
+        splitter.setSizes([280, 700, 300])
 
     # ── 数据加载 ──────────────────────────────────────────────────────────────────────
 
