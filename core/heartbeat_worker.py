@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+import math
 import threading
 import time
 import uuid
@@ -47,6 +48,7 @@ class HeartbeatWorker:
 
         self._page_id = str(uuid.uuid4())
         self._heartbeat_interval = 60  # 秒，默认心跳间隔（实际以服务端返回为准）
+        self._refresh_interval = 180  # 秒，_refresh_finish_info 调用间隔
 
         self._stop_event = threading.Event()
         self._thread = threading.Thread(
@@ -102,6 +104,9 @@ class HeartbeatWorker:
 
                 self._watch_video(video, start_secs)
 
+                # 每个视频结束后间隔几秒再继续下一个，避免请求过快
+                time.sleep(3)
+
         except Exception as exc:  # noqa: BLE001
             self._listener.on_error(course, str(exc))
             return
@@ -121,10 +126,11 @@ class HeartbeatWorker:
 
         elapsed = start_secs
         last_heartbeat = start_secs
+        last_refresh = start_secs
 
         # 跳过已经经过的 mark_points
         marks = video.mark_points  # 已按秒排好序
-        next_mark_idx = 0
+        next_mark_idx = len(marks)
         for i, t in enumerate(marks):
             if t > start_secs:
                 next_mark_idx = i
@@ -151,17 +157,28 @@ class HeartbeatWorker:
             if delta >= self._heartbeat_interval:
                 video_api.send_heartbeat(course, video, self._page_id, elapsed, delta)
                 last_heartbeat = elapsed
+
+            # 每 3 分钟刷新一次完成情况
+            if elapsed - last_refresh >= self._refresh_interval:
                 self._refresh_finish_info()
+                last_refresh = elapsed
 
             # 通知 UI 更新进度（每秒）
             self._listener.on_video_progress(course, video, elapsed, video.duration)
 
         # ── 视频结束收尾 ───────────────────────────────────────────────────────
 
-        # 最后一次心跳（剩余秒数）
+        # 最后一次心跳：等待到心跳间隔的整数倍后再发送
         remaining = video.duration - last_heartbeat
         if remaining > 0:
-            video_api.send_heartbeat(course, video, self._page_id, video.duration, remaining)
+            learn_time = math.ceil(remaining / self._heartbeat_interval) * self._heartbeat_interval
+            wait_secs = learn_time - remaining
+            for _ in range(wait_secs):
+                if self._stop_event.is_set():
+                    break
+                time.sleep(1)
+            video_api.send_heartbeat(course, video, self._page_id, video.duration, learn_time)
+            # video_api.send_heartbeat(course, video, self._page_id, video.duration, remaining)
 
         # 完成信号
         video_api.complete_video(course, video)
