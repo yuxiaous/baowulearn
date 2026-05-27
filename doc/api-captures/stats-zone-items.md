@@ -1,10 +1,30 @@
-# itemFinishStatisticsSortPage
+# 专区课程完成明细查询
 
-获取专区完成情况-分项情况
+> 原始接口名：itemFinishStatisticsSortPage
+
+查询专区内每门课程的完成情况。
 
 POST https://learn.baowugroup.com/learn-gateway/service/tms/ols/onlineClass/itemFinishStatisticsSortPage
 
-## Request
+## 接口概览
+
+- 接口作用：查询专区内每门课程的完成情况，帮助定位具体哪门课程尚未达标。
+- 调用时机：在进入专区统计页、查看专区分项完成情况，或刷新专区课程进度列表时调用。
+- 前置条件：已完成登录并携带有效 `token`，已明确专区的 `olClassNo`、`centerCode` 和 `tenantCode`。
+- 后续依赖：可根据未完成课程的状态，回到专区课程列表或课程详情继续补学习。
+
+## 请求示例
+
+这个请求示例展示了专区分项统计查询的常见分页方式。它适合用于展示专区内每门课程的学习完成情况列表。
+
+### 请求字段说明
+
+- `current`、`size`: 控制分页范围。
+- `data.olClassNo`: 目标专区编号。
+- `data.centerCode`: 学习中心编号。
+- `data.tenantCode`: 当前租户编号。
+
+### 请求体
 
 ```json
 {
@@ -18,7 +38,19 @@ POST https://learn.baowugroup.com/learn-gateway/service/tms/ols/onlineClass/item
 }
 ```
 
-## Response
+## 响应示例
+
+响应中的 `records` 数组会按课程粒度返回完成情况。它适合用于查找专区中尚未完成或尚未达标的具体课程。
+
+### 响应字段说明
+
+- `data.records[].code`: 课程编号。
+- `data.records[].name`: 课程名称。
+- `data.records[].learnScore`: 当前课程完成分值。
+- `data.records[].learnStatus`: 当前课程状态。
+- `data.records[].isExam`: 是否涉及考试要求。
+
+### 响应体
 
 ```json
 {

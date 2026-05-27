@@ -1,10 +1,30 @@
-# queryPageOpenClass
+# 公开课列表查询
 
-请求公开课列表
+> 原始接口名：queryPageOpenClass
+
+获取公开课列表及进入课程学习所需的关键标识。
 
 POST https://learn.baowugroup.com/learn-gateway/service/tms/ols/student/queryPageOpenClass
 
-## Request
+## 接口概览
+
+- 接口作用：获取公开课列表，并返回进入具体课程学习所需的课程和班级标识。
+- 调用时机：在登录成功后进入公开课页面时调用，也可在切换学习状态、搜索条件或分页时再次调用。
+- 前置条件：已完成登录并携带有效 `token`，且已经明确公开课列表的筛选条件和排序方式。
+- 后续依赖：拿到 `courseGuid`、`courseNo` 和 `olClassNo` 后，可继续调用课程详情、课程目录、初始化学习和进度统计接口。
+
+## 请求示例
+
+这个请求示例展示了公开课列表页的常见查询方式。通过学习状态、关键字和排序条件，可以定位到需要继续学习的课程。
+
+### 请求字段说明
+
+- `current`、`size`: 控制分页范围。
+- `data.searchType`: 公开课学习状态筛选条件。
+- `data.searchInfo`: 关键字搜索条件。
+- `data.sortClass`、`data.sortType`: 控制列表排序方式。
+
+### 请求体
 
 ```json
 {
@@ -20,7 +40,19 @@ POST https://learn.baowugroup.com/learn-gateway/service/tms/ols/student/queryPag
 }
 ```
 
-## Response
+## 响应示例
+
+响应中的 `records` 数组同时提供了公开课列表展示信息，以及进入课程详情和学习链路所需的业务标识。
+
+### 响应字段说明
+
+- `data.records[].olClassNo`: 公开课所属班级编号。
+- `data.records[].courseGuid`: 课程详情接口需要的课程记录标识。
+- `data.records[].courseNo`: 查询视频目录、初始化学习和统计进度时会继续使用。
+- `data.records[].courseName`: 课程名称。
+- `data.records[].learnStatus`: 当前课程学习状态，可用于界面展示。
+
+### 响应体
 
 ```json
 {

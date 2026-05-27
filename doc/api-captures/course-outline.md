@@ -1,10 +1,29 @@
-# queryCourseOutlineContentTreeListSimple
+# 课程目录查询
 
-获取课程的视频列表
+> 原始接口名：queryCourseOutlineContentTreeListSimple
+
+获取课程下的视频或课件目录。
 
 POST https://learn.baowugroup.com/learn-gateway/service/tms/rls/courseOutline/queryCourseOutlineContentTreeListSimple
 
-## Request
+## 接口概览
+
+- 接口作用：获取课程下的视频或课件目录，是进入具体播放环节前最重要的目录查询接口。
+- 调用时机：在进入课程后、开始播放前调用，也可在刷新课程目录或切换课程时再次调用。
+- 前置条件：已完成登录并携带有效 `token`，且已经通过课程详情接口拿到 `courseNo`。
+- 后续依赖：拿到 `cataNo`、`wareCode`、`wareType` 和 `markeTimePoint` 后，可继续调用播放进度查询、学习初始化、心跳上报和打点接口。
+
+## 请求示例
+
+这个请求示例展示了课程目录查询的最小输入。目录返回结果通常是后续整个播放链路的起点。
+
+### 请求字段说明
+
+- `courseNo`: 目标课程编号。
+- `centerCode`: 学习中心编号。
+- `isAppendPre`: 是否附加前置内容，示例中为 `1`。
+
+### 请求体
 
 ```json
 {
@@ -14,7 +33,20 @@ POST https://learn.baowugroup.com/learn-gateway/service/tms/rls/courseOutline/qu
 }
 ```
 
-## Response
+## 响应示例
+
+响应结构按目录节点组织，真正要用于播放链路的关键信息集中在每个 `content` 条目里。
+
+### 响应字段说明
+
+- `data[].content[].cataNo`: 视频目录节点编号。
+- `data[].content[].wareCode`: 视频资源编号，后续播放链路会继续使用。
+- `data[].content[].wareType`: 资源类型，示例中视频为 `1`。
+- `data[].content[].duration`: 视频时长。
+- `data[].content[].markeTimePoint`: 视频打点时间，用于后续打卡上报。
+- `data[].content[].learnedStatus`: 当前视频学习状态。
+
+### 响应体
 
 ```json
 {

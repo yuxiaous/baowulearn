@@ -1,10 +1,29 @@
-# detailOnlineClassCourse
+# 课程详情查询
 
-获取课程详情
+> 原始接口名：detailOnlineClassCourse
+
+查询单门课程的详细信息。
 
 POST https://learn.baowugroup.com/learn-gateway/service/tms/ols/onlineClassCourse/detailOnlineClassCourse
 
-## Request
+## 接口概览
+
+- 接口作用：查询课程标题、讲师、课时、课程简介和所属公开课/专区信息。
+- 调用时机：在课程列表中选定某门课程后调用，常用于进入课程详情页或开始学习前展示课程信息。
+- 前置条件：已完成登录并携带有效 `token`，且已经通过公开课列表或专区课程列表拿到课程 `guid`。
+- 后续依赖：拿到 `courseNo` 和 `olClassNo` 后，可继续调用视频目录、学习初始化和课程完成情况接口。
+
+## 请求示例
+
+这个请求示例展示了如何通过课程 `guid` 查询课程详情。请求体只有少量字段，但它们决定了能否准确定位到当前课程。
+
+### 请求字段说明
+
+- `guid`: 课程详情查询的核心标识。
+- `centerCode`: 学习中心编号。
+- `stuClient`: 指示当前请求来自学员端。
+
+### 请求体
 
 ```json
 {
@@ -14,7 +33,19 @@ POST https://learn.baowugroup.com/learn-gateway/service/tms/ols/onlineClassCours
 }
 ```
 
-## Response
+## 响应示例
+
+响应中的核心内容集中在 `data` 对象。除了课程基础信息，还会返回后续学习链路要继续使用的关键标识。
+
+### 响应字段说明
+
+- `data.courseNo`: 后续查询目录、初始化学习和完成情况时都会用到。
+- `data.olClassNo`: 所属公开课或专区编号。
+- `data.teacherName`: 课程讲师展示信息。
+- `data.courseHours`、`data.courseTime`: 课程课时和时长。
+- `data.courseContent`: 课程简介，可用于详情展示。
+
+### 响应体
 
 ```json
 {
