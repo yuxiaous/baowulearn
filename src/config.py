@@ -58,7 +58,7 @@ ASSETS_DIR: pathlib.Path = base_dir() / "assets"
 # 从环境变量读取 Token（可在 .env 中配置 TOKEN=xxx）
 TOKEN: str | None = os.environ.get("TOKEN") or None
 
-BASE_URL = "https://learn.baowugroup.com/learn-gateway"
+BASE_URL = "https://learn.baowugroup.com/learn-gateway/service"
 
 # SM2 非对称加密公钥 (base64编码)，从前端 JS 中提取
 # JS 来源: const zi = {sm2PublicKey: "...", algorithm: "SM2"}

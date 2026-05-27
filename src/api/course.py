@@ -16,7 +16,7 @@ def get_my_classes(
     """
     获取专区列表（专区标签页使用）。
     """
-    url = "/service/tms/ols/student/myClassPage"
+    url = "/tms/ols/student/myClassPage"
     payload = {
         "current": page,
         "size": page_size,
@@ -63,7 +63,7 @@ def get_openclass_courses(
     获取我的公开课课程列表（单页）。
     返回 (课程列表, 总数, 总页数)。
     """
-    url = "/service/tms/ols/student/queryPageOpenClass"
+    url = "/tms/ols/student/queryPageOpenClass"
     payload = {
         "current": page,
         "size": page_size,
@@ -116,7 +116,7 @@ def get_onlineclass_courses(
     获取专区课程列表（单页）。
     返回 (课程列表, 总数, 总页数)。
     """
-    url = "/service/tms/ols/onlineClassCourse/getOnlineClassCourseSortPage"
+    url = "/tms/ols/onlineClassCourse/getOnlineClassCourseSortPage"
     payload = {
         "current": page,
         "size": page_size,
@@ -163,7 +163,7 @@ def get_onlineclass_courses(
 
 def get_course_detail(course: Course) -> Course:
     """获取课程详情，包含学时等信息。"""
-    url = "/service/tms/ols/onlineClassCourse/detailOnlineClassCourse"
+    url = "/tms/ols/onlineClassCourse/detailOnlineClassCourse"
     payload = {
         "centerCode": course.center_code,
         "guid": course.course_guid,
@@ -196,7 +196,7 @@ def save_compute_task_course_detail(course: Course) -> None:
     """
     触发服务端重新计算课程完成情况。
     """
-    url = "/service/tms/ols/computeTask/saveComputeTask4StuCourseDetail"
+    url = "/tms/ols/computeTask/saveComputeTask4StuCourseDetail"
     payload = {
         "classNo": course.class_no,
         "courseNo": course.course_no,
@@ -208,7 +208,7 @@ def save_compute_task_course_detail(course: Course) -> None:
 
 def get_course_finish_info(course: Course) -> Course:
     """查询课程完成情况。"""
-    url = "/service/tms/ols/onlineClassCourse/finishInfo"
+    url = "/tms/ols/onlineClassCourse/finishInfo"
     payload = {
         "centerCode": course.center_code,
         "courseNo": course.course_no,
@@ -240,7 +240,7 @@ def save_compute_task_class_detail(ol_class: OLClass) -> None:
     """
     触发服务端重新计算专区完成情况。
     """
-    url = "/service/tms/ols/computeTask/saveComputeTask4StuClassDetail"
+    url = "/tms/ols/computeTask/saveComputeTask4StuClassDetail"
     payload = {
         "classNo": ol_class.class_no,
     }

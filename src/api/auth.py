@@ -18,7 +18,7 @@ def get_captcha() -> tuple[bytes, str]:
 
     返回 (jpeg_bytes, captcha_id)。
     """
-    data = client.post("/service/ss/auth/user/captchaImage")
+    data = client.post("/ss/auth/user/captchaImage")
     if not data.get("isSuccess"):
         raise RuntimeError(f"获取验证码失败: {data}")
 
@@ -60,7 +60,7 @@ def login(
         "clientType": "PC",
     }
 
-    data = client.post("/service/ss/auth/user/login", json=payload)
+    data = client.post("/ss/auth/user/login", json=payload)
 
     if not data.get("isSuccess"):
         msg = data.get("message") or data.get("msg") or str(data)

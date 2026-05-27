@@ -54,7 +54,7 @@ def get_course_videos(course: Course) -> list[Video]:
 
     只返回 contentType=="1"（视频）且 status=="1"（有效）的条目。
     """
-    url = "/service/tms/rls/courseOutline/queryCourseOutlineContentTreeListSimple"
+    url = "/tms/rls/courseOutline/queryCourseOutlineContentTreeListSimple"
     payload = {
         "centerCode": course.center_code,
         "courseNo": course.course_no,
@@ -98,7 +98,7 @@ def init_learn_record(course: Course, page_id: str) -> None:
     初始化学习记录，每次开始观看课程时调用一次。
     可以获取到上次的学习进度（续播用）。
     """
-    url = "/service/tms/ols/learnRecord/initLearnRecord"
+    url = "/tms/ols/learnRecord/initLearnRecord"
     payload = {
         "courseNo": course.course_no,
         "olClassNo": course.class_no,
@@ -123,7 +123,7 @@ def get_play_progress(course: Course, video: Video) -> int:
     """
     查询视频已播放的最大时间，返回秒数。
     """
-    url = "/service/tms/ols/learnWareProgress/getMaxTimeAndLastTime"
+    url = "/tms/ols/learnWareProgress/getMaxTimeAndLastTime"
     payload = {
         "cataNo": video.cata_no,
         "courseNo": course.course_no,
@@ -149,7 +149,7 @@ def start_video(course: Course, video: Video, begin_secs: int = 0) -> None:
 
     begin_secs - 续播起始位置（秒），默认从头播放。
     """
-    url = "/service/tms/ols/learnVideoRecord/listenVideoOptRecord"
+    url = "/tms/ols/learnVideoRecord/listenVideoOptRecord"
     payload = {
         "cataNo": video.cata_no,
         "classCourseCenterCode": course.center_code,
@@ -170,7 +170,7 @@ def start_video(course: Course, video: Video, begin_secs: int = 0) -> None:
 
 def end_video(course: Course, video: Video, end_secs: int) -> None:
     """发送停止播放信号（operateType=2, videoStatus=2）。"""
-    url = "/service/tms/ols/learnVideoRecord/listenVideoOptRecord"
+    url = "/tms/ols/learnVideoRecord/listenVideoOptRecord"
     payload = {
         "cataNo": video.cata_no,
         "classCourseCenterCode": course.center_code,
@@ -204,7 +204,7 @@ def send_heartbeat(
     cur_secs   - 当前播放位置（秒）
     learn_time - 距上次心跳的秒数
     """
-    url = "/service/tms/ols/learnHertRecord/saveLearnHertRecord"
+    url = "/tms/ols/learnHertRecord/saveLearnHertRecord"
     payload = {
         "cataNo": video.cata_no,
         "classCourseCenterCode": course.center_code,
@@ -236,7 +236,7 @@ def mark_progress(
     mark_secs: int,
 ) -> None:
     """在指定时间点发送进度标记（markeTimePoint）。"""
-    url = "/service/tms/ols/learnWareProgress/listenVideoMarkProgress"
+    url = "/tms/ols/learnWareProgress/listenVideoMarkProgress"
     payload = {
         "cataNo": video.cata_no,
         "courseNo": course.course_no,
@@ -258,7 +258,7 @@ def mark_progress(
 
 def complete_video(course: Course, video: Video) -> None:
     """发送视频完成信号。"""
-    url = "/service/tms/ols/computeTask/saveComputeTask4AfterVideoPlayed"
+    url = "/tms/ols/computeTask/saveComputeTask4AfterVideoPlayed"
     payload = {
         "classNo": course.class_no,
         "courseNo": course.course_no,
@@ -274,7 +274,7 @@ def complete_video(course: Course, video: Video) -> None:
 
 def get_heartbeat_interval() -> int:
     """获取心跳发送的时间间隔（秒）。"""
-    url = "/service/ss/properties/queryPropValue"
+    url = "/ss/properties/queryPropValue"
     payload = {
         "propertiesKey": "heartFrequency",
     }
