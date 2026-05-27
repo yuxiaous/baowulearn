@@ -55,7 +55,7 @@ class MainWindow(QMainWindow):
 
         self._courses: list[Course] = []
         self._fetch_gen: int = 0  # 每次刷新递增，用于取消旧的 finishInfo 批量拉取
-        self._tab_data: list[dict] = []  # [{"label": str, "class_no": str|None}, ...]
+        self._tab_data: list[dict] = []  # [{"label": str, "class": OLClass|None}, ...]
         self._current_tab: int = 0
         self._current_video: Video | None = None  # 当前正在播放的视频
         self._course_items: dict[tuple[str, str], QTreeWidgetItem] = {}
@@ -135,9 +135,7 @@ class MainWindow(QMainWindow):
         # ── 中间课程树 ─────────────────────────────────────────────────
         self._course_tree = QTreeWidget()
         self._course_tree.setColumnCount(6)
-        self._course_tree.setHeaderLabels(
-            ["序号", "课程名称", "学时", "课程成绩", "已学时长", "状态"]
-        )
+        self._course_tree.setHeaderLabels(["序号", "课程名称", "学时", "课程成绩", "已学时长", "状态"])
         self._course_tree.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self._course_tree.setRootIsDecorated(False)
 
@@ -227,7 +225,7 @@ class MainWindow(QMainWindow):
 
     def _load_tabs(self) -> None:
         """初始化标签页：先放公开课，再异步追加有效期内的专区。"""
-        self._tab_data = [{"label": "公开课", "class_no": None}]
+        self._tab_data = [{"label": "公开课", "class": None}]
         self._olclass_listbox.blockSignals(True)
         self._olclass_listbox.clear()
         self._olclass_listbox.addItem("公开课")
@@ -248,12 +246,12 @@ class MainWindow(QMainWindow):
     def _add_class_tabs(self, classes: list[OLClass]) -> None:
         """将有效专区追加到标签页列表。"""
         for c in classes:
-            self._tab_data.append({"label": c.class_name, "class_no": c.class_no})
+            self._tab_data.append({"label": c.class_name, "class": c})
             self._olclass_listbox.addItem(c.class_name)
 
     def _on_tab_select(self, idx: int) -> None:
         """切换标签页时重新加载对应课程列表。"""
-        if idx < 0 or idx == self._current_tab:
+        if idx < 0 or idx >= len(self._tab_data) or idx == self._current_tab:
             return
         self._current_tab = idx
         self._load_courses()
@@ -265,11 +263,10 @@ class MainWindow(QMainWindow):
 
     def _fetch_courses(self) -> None:
         gen = self._fetch_gen
-        tab = self._tab_data[self._current_tab] if self._tab_data else {"class_no": None}
-        class_no = tab.get("class_no")
+        ol_class = self._tab_data[self._current_tab]["class"] if self._tab_data else None
 
         try:
-            if class_no is None:
+            if ol_class is None:
 
                 def _fetch_page(p: int) -> tuple[list[Course], int, int]:
                     return course_api.get_openclass_courses(page=p)
@@ -277,7 +274,7 @@ class MainWindow(QMainWindow):
             else:
 
                 def _fetch_page(p: int) -> tuple[list[Course], int, int]:
-                    return course_api.get_onlineclass_courses(class_no, page=p)
+                    return course_api.get_onlineclass_courses(ol_class, page=p)
 
             all_courses: list[Course] = []
             page = 1
@@ -314,9 +311,7 @@ class MainWindow(QMainWindow):
 
     def _populate_tree(self, courses: list[Course]) -> None:
         # 保留现有的挂机状态
-        hang_map: dict[tuple[str, str], HangStatus] = {
-            (c.course_no, c.class_no): c.hang_status for c in self._courses
-        }
+        hang_map: dict[tuple[str, str], HangStatus] = {(c.course_no, c.class_no): c.hang_status for c in self._courses}
         for c in courses:
             c.hang_status = hang_map.get((c.course_no, c.class_no), HangStatus.IDLE)
 
@@ -344,9 +339,7 @@ class MainWindow(QMainWindow):
 
         self._status_bar.showMessage(f"共 {len(courses)} 门课程")
 
-    def _on_courses_page(
-        self, gen: int, courses: list[Course], total_count: int, is_last: bool
-    ) -> None:
+    def _on_courses_page(self, gen: int, courses: list[Course], total_count: int, is_last: bool) -> None:
         """接收分页课程数据（主线程槽）。"""
         if gen != self._fetch_gen:
             return
@@ -370,11 +363,7 @@ class MainWindow(QMainWindow):
 
     def _selected_courses(self) -> list[Course]:
         selected_items = set(self._course_tree.selectedItems())
-        return [
-            c
-            for c in self._courses
-            if self._course_items.get((c.course_no, c.class_no)) in selected_items
-        ]
+        return [c for c in self._courses if self._course_items.get((c.course_no, c.class_no)) in selected_items]
 
     def _add_to_queue(self) -> None:
         courses = self._selected_courses()
@@ -382,9 +371,7 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "提示", "请先选择课程")
             return
         for c in courses:
-            already_done = (
-                c.course_finished >= c.course_duration if c.course_duration > 0 else c.is_completed
-            )
+            already_done = c.course_finished >= c.course_duration if c.course_duration > 0 else c.is_completed
             if already_done:
                 QMessageBox.warning(self, "提示", f"《{c.course_name}》已完成，无需挂机")
                 continue

@@ -108,8 +108,7 @@ def get_openclass_courses(
 
 
 def get_onlineclass_courses(
-    class_no: str,
-    class_type: str = "ZE0",
+    ol_class: OLClass,
     page: int = 1,
     page_size: int = 5,
 ) -> tuple[list[Course], int, int]:
@@ -127,8 +126,8 @@ def get_onlineclass_courses(
             "courseTypeCode": "",
             "isMine": "1",
             "isRecursiveCourse": "1",
-            "olClassNo": class_no,  # 专区编号
-            "olClassType": class_type,
+            "olClassNo": ol_class.class_no,  # 专区编号
+            "olClassType": ol_class.class_type,
         },
     }
     resp = client.post(url, json=payload)
