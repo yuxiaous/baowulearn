@@ -421,7 +421,7 @@ class MainWindow(QMainWindow):
         self._update_video_progress(video, elapsed, total)
 
     def _on_hang_error(self, msg: str) -> None:
-        QMessageBox.critical(self, "挂机错误", msg)
+        QMessageBox.critical(self, "错误", msg)
         self._status_bar.showMessage("就绪")
 
     def _update_finish_info_cell(self, course: Course) -> None:
