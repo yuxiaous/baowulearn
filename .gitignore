@@ -20,7 +20,7 @@ build/
 *.exe
 
 # IDE
-.vscode/
+# .vscode/
 .idea/
 
 # OS
