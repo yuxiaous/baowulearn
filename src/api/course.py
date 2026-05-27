@@ -6,59 +6,6 @@ from api import client
 from models.course import Course
 from models.olclass import OLClass
 
-# ── 获取公开课列表 ──────────────────────────────────────────────────────────────
-
-
-def get_openclass_courses(
-    search_type: str = "1",  # "1" 全部, "2" 学习中, "3" 已完成
-    page: int = 1,
-    page_size: int = 10,
-) -> tuple[list[Course], int, int]:
-    """
-    获取我的公开课课程列表（单页）。
-    返回 (课程列表, 总数, 总页数)。
-    """
-    url = "/service/tms/ols/student/queryPageOpenClass"
-    payload = {
-        "current": page,
-        "size": page_size,
-        "data": {
-            "learnStatus": "",
-            "searchInfo": "",
-            "searchType": search_type,
-            "sortClass": "1",
-            "sortType": "desc",
-        },
-    }
-    resp = client.post(url, json=payload)
-    if not resp.get("isSuccess"):
-        raise RuntimeError(f"获取公开课课程列表失败: {resp.get('message', resp)}")
-
-    page_data = resp["data"]
-    records = page_data.get("records", [])
-    total_courses = int(page_data.get("total", 0))
-    total_pages = int(page_data.get("pages", 1))
-
-    courses = [
-        Course(
-            course_guid=str(record.get("courseGuid", "")),
-            course_no=str(record.get("courseNo", "")),
-            course_name=str(record.get("courseName", "")),
-            class_no=str(record.get("olClassNo", "")),
-            class_name=str(record.get("olClassName", "")),
-            class_type=str(record.get("olClassType", "")),
-            center_code=str(record.get("centerCode", None)),
-            tenant_code=str(record.get("tenantCode", None)),
-            learn_status=str(record.get("learnStatus", None)),
-            course_hours=float(record.get("courseHours", 0.0)),
-            begin_time=str(record.get("courseBeginTime", None)),
-            end_time=str(record.get("courseEndTime", None)),
-        )
-        for record in records
-    ]
-    return courses, total_courses, total_pages
-
-
 # ── 获取专区列表 ──────────────────────────────────────────────────────────────
 
 
@@ -103,6 +50,58 @@ def get_my_classes(
         )
         for record in records
     ]
+
+
+# ── 获取公开课列表 ──────────────────────────────────────────────────────────────
+
+
+def get_openclass_courses(
+    page: int = 1,
+    page_size: int = 10,
+) -> tuple[list[Course], int, int]:
+    """
+    获取我的公开课课程列表（单页）。
+    返回 (课程列表, 总数, 总页数)。
+    """
+    url = "/service/tms/ols/student/queryPageOpenClass"
+    payload = {
+        "current": page,
+        "size": page_size,
+        "data": {
+            "learnStatus": "",
+            "searchInfo": "",
+            "searchType": "1",  # "1" 全部, "2" 学习中, "3" 已完成
+            "sortClass": "1",
+            "sortType": "desc",
+        },
+    }
+    resp = client.post(url, json=payload)
+    if not resp.get("isSuccess"):
+        raise RuntimeError(f"获取公开课课程列表失败: {resp.get('message', resp)}")
+
+    page_data = resp["data"]
+    records = page_data.get("records", [])
+    total_courses = int(page_data.get("total", 0))
+    total_pages = int(page_data.get("pages", 1))
+
+    courses = [
+        Course(
+            course_guid=str(record.get("courseGuid", "")),
+            course_no=str(record.get("courseNo", "")),
+            course_name=str(record.get("courseName", "")),
+            class_no=str(record.get("olClassNo", "")),
+            class_name=str(record.get("olClassName", "")),
+            class_type=str(record.get("olClassType", "")),
+            center_code=str(record.get("centerCode", None)),
+            tenant_code=str(record.get("tenantCode", None)),
+            learn_status=str(record.get("learnStatus", None)),
+            course_hours=float(record.get("courseHours", 0.0)),
+            begin_time=str(record.get("courseBeginTime", None)),
+            end_time=str(record.get("courseEndTime", None)),
+        )
+        for record in records
+    ]
+    return courses, total_courses, total_pages
 
 
 # ── 获取专区课程列表 ──────────────────────────────────────────────────────────────
@@ -233,3 +232,19 @@ def get_course_finish_info(course: Course) -> Course:
             course.course_finished = float(detail.get("finishValue") or 0.0)
 
     return course
+
+
+# ── 专区完成情况 ──────────────────────────────────────────────────────────────
+
+
+def save_compute_task_class_detail(ol_class: OLClass) -> None:
+    """
+    触发服务端重新计算专区完成情况。
+    """
+    url = "/service/tms/ols/computeTask/saveComputeTask4StuClassDetail"
+    payload = {
+        "classNo": ol_class.class_no,
+    }
+    resp = client.post(url, json=payload)
+    if not resp.get("isSuccess"):
+        raise RuntimeError(f"触发计算专区完成情况失败: {resp.get('message', resp)}")
