@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 
 @dataclass
-class OLClass:
+class Zone:
     """一个专区的完整信息。"""
 
     class_guid: str  # 专区唯一标识

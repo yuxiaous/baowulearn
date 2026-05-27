@@ -75,7 +75,7 @@
 
 - `src/models/course.py`: 课程模型与本地挂机状态枚举
 - `src/models/video.py`: 视频模型、时长、打卡点和播放进度
-- `src/models/olclass.py`: 学习专区模型
+- `src/models/zone.py`: 学习专区模型
 
 ## 目录结构
 

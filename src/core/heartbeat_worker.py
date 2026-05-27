@@ -4,10 +4,10 @@
 负责观看一门课程的全部视频：
   1. initLearnRecord（课程级，调用一次）
   2. 对每个视频： _watch_video
-       start_video
+       start_video_event
        → 每 60 秒 send_heartbeat
-       → 在 mark_points 时刻 mark_progress
-       → 视频结束：final send_heartbeat + complete_video + end_video
+       → 在 mark_points 时刻 send_mark_progress
+       → 视频结束：final send_heartbeat + compute_video_finish + end_video_event
   3. 所有视频完成后触发 on_course_complete
 
 支持随时调用 stop() 停止（发完当前心跳后退出）。
@@ -92,7 +92,7 @@ class HeartbeatWorker:
                     break
 
                 # 轮到该视频时才查询播放进度，并立即更新界面显示
-                start_secs = video_api.get_play_progress(course, video)
+                start_secs = video_api.get_playback_progress(course, video)
                 self._listener.on_video_progress(course, video, start_secs, video.duration)
 
                 # 已到达或超过视频末尾 → 该视频已完成，跳过
@@ -123,7 +123,7 @@ class HeartbeatWorker:
         self._listener.on_video_start(course, video)
 
         # 开始播放信号
-        self._try_call(video_api.start_video, course, video, start_secs)
+        self._try_call(video_api.start_video_event, course, video, start_secs)
 
         elapsed = start_secs
         last_heartbeat = start_secs
@@ -150,7 +150,7 @@ class HeartbeatWorker:
 
             # 进度打卡：命中 mark_points 时发送
             while next_mark_idx < len(marks) and marks[next_mark_idx] <= elapsed:
-                self._try_call(video_api.mark_progress, course, video, self._page_id, marks[next_mark_idx])
+                self._try_call(video_api.send_mark_progress, course, video, self._page_id, marks[next_mark_idx])
                 next_mark_idx += 1
 
             # 每 60 秒发一次心跳，然后触发服务端重算完成情况``
@@ -182,10 +182,10 @@ class HeartbeatWorker:
             # video_api.send_heartbeat(course, video, self._page_id, video.duration, remaining)
 
         # 完成信号
-        self._try_call(video_api.complete_video, course, video)
+        self._try_call(video_api.compute_video_finish, course, video)
 
         # 结束播放信号
-        self._try_call(video_api.end_video, course, video, video.duration)
+        self._try_call(video_api.end_video_event, course, video, video.duration)
 
         # 视频完成后刷新一次完成情况
         self._try_call(self._refresh_finish_info)
@@ -208,7 +208,7 @@ class HeartbeatWorker:
 
     def _refresh_finish_info(self) -> None:
         """触发服务端重算。"""
-        course_api.save_compute_task_course_detail(self._course)
+        course_api.compute_course_finish(self._course)
         course_api.get_course_finish_info(self._course)
 
     def _try_call(self, fn: Callable, *args, retries: int = 3) -> None:

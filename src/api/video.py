@@ -1,10 +1,5 @@
 """
 视频观看相关 API。
-
-涵盖从获取视频列表到完成播放的完整流程：
-  get_course_videos → init_learn_record → start_video
-  → send_heartbeat / mark_progress (循环)
-  → complete_video → end_video
 """
 
 from __future__ import annotations
@@ -119,7 +114,7 @@ def init_learn_record(course: Course, page_id: str) -> None:
 # ── 已播放进度查询 ───────────────────────────────────────────────────────────────
 
 
-def get_play_progress(course: Course, video: Video) -> int:
+def get_playback_progress(course: Course, video: Video) -> int:
     """
     查询视频已播放的最大时间，返回秒数。
     """
@@ -144,7 +139,7 @@ def get_play_progress(course: Course, video: Video) -> int:
 # ── 视频播放控制 ──────────────────────────────────────────────────────────────
 
 
-def start_video(course: Course, video: Video, begin_secs: int = 0) -> None:
+def start_video_event(course: Course, video: Video, begin_secs: int = 0) -> None:
     """发送开始播放信号（operateType=1, videoStatus=1）。
 
     begin_secs - 续播起始位置（秒），默认从头播放。
@@ -168,7 +163,7 @@ def start_video(course: Course, video: Video, begin_secs: int = 0) -> None:
         raise RuntimeError(f"开始播放视频失败: {resp.get('message', resp)}")
 
 
-def end_video(course: Course, video: Video, end_secs: int) -> None:
+def end_video_event(course: Course, video: Video, end_secs: int) -> None:
     """发送停止播放信号（operateType=2, videoStatus=2）。"""
     url = "/tms/ols/learnVideoRecord/listenVideoOptRecord"
     payload = {
@@ -229,7 +224,7 @@ def send_heartbeat(
 # ── 进度打卡 ──────────────────────────────────────────────────────────────────
 
 
-def mark_progress(
+def send_mark_progress(
     course: Course,
     video: Video,
     page_id: str,
@@ -256,8 +251,10 @@ def mark_progress(
 # ── 完成视频 ──────────────────────────────────────────────────────────────────
 
 
-def complete_video(course: Course, video: Video) -> None:
-    """发送视频完成信号。"""
+def compute_video_finish(course: Course, video: Video) -> None:
+    """
+    触发服务端重新计算视频完成情况。
+    """
     url = "/tms/ols/computeTask/saveComputeTask4AfterVideoPlayed"
     payload = {
         "classNo": course.class_no,

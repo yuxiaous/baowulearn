@@ -4,15 +4,15 @@ from __future__ import annotations
 
 from api import client
 from models.course import Course
-from models.olclass import OLClass
+from models.zone import Zone
 
 # ── 获取专区列表 ──────────────────────────────────────────────────────────────
 
 
-def get_my_classes(
+def get_zone_list(
     page: int = 1,
     page_size: int = 10,
-) -> list[OLClass]:
+) -> list[Zone]:
     """
     获取专区列表（专区标签页使用）。
     """
@@ -37,7 +37,7 @@ def get_my_classes(
 
     records = resp["data"].get("records", [])
     return [
-        OLClass(
+        Zone(
             class_guid=str(record.get("guid", "")),
             class_no=str(record.get("olClassNo", "")),
             class_name=str(record.get("olClassName", "")),
@@ -55,7 +55,7 @@ def get_my_classes(
 # ── 获取公开课列表 ──────────────────────────────────────────────────────────────
 
 
-def get_openclass_courses(
+def get_open_courses(
     page: int = 1,
     page_size: int = 10,
 ) -> tuple[list[Course], int, int]:
@@ -107,8 +107,8 @@ def get_openclass_courses(
 # ── 获取专区课程列表 ──────────────────────────────────────────────────────────────
 
 
-def get_onlineclass_courses(
-    ol_class: OLClass,
+def get_zone_courses(
+    zone: Zone,
     page: int = 1,
     page_size: int = 5,
 ) -> tuple[list[Course], int, int]:
@@ -126,8 +126,8 @@ def get_onlineclass_courses(
             "courseTypeCode": "",
             "isMine": "1",
             "isRecursiveCourse": "1",
-            "olClassNo": ol_class.class_no,  # 专区编号
-            "olClassType": ol_class.class_type,
+            "olClassNo": zone.class_no,  # 专区编号
+            "olClassType": zone.class_type,
         },
     }
     resp = client.post(url, json=payload)
@@ -192,7 +192,7 @@ def get_course_detail(course: Course) -> Course:
 # ── 课程完成情况 ──────────────────────────────────────────────────────────────
 
 
-def save_compute_task_course_detail(course: Course) -> None:
+def compute_course_finish(course: Course) -> None:
     """
     触发服务端重新计算课程完成情况。
     """
@@ -236,13 +236,13 @@ def get_course_finish_info(course: Course) -> Course:
 # ── 专区完成情况 ──────────────────────────────────────────────────────────────
 
 
-def save_compute_task_class_detail(ol_class: OLClass) -> None:
+def compute_zone_finish(zone: Zone) -> None:
     """
     触发服务端重新计算专区完成情况。
     """
     url = "/tms/ols/computeTask/saveComputeTask4StuClassDetail"
     payload = {
-        "classNo": ol_class.class_no,
+        "classNo": zone.class_no,
     }
     resp = client.post(url, json=payload)
     if not resp.get("isSuccess"):

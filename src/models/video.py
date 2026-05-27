@@ -25,7 +25,7 @@ class Video:
     mark_points: list[int] = field(default_factory=list)  # 进度打卡点（秒）
 
     learned_status: str = None  # 服务端状态：None 未学习, "0"学习中, "1"已完成
-    play_progress: int = 0  # 已播放进度（秒），由 get_play_progress 填充
+    play_progress: int = 0  # 已播放进度（秒），由 get_playback_progress 填充
 
     index: int = 0  # 在课程中的序号（0起）
 

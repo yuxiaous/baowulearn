@@ -26,7 +26,7 @@ from api import course as course_api
 from api import video as video_api
 from core.queue_manager import QueueManager
 from models.course import Course, HangStatus
-from models.olclass import OLClass
+from models.zone import Zone
 from models.video import Video
 import config
 
@@ -41,7 +41,7 @@ class MainWindow(QMainWindow):
     logout_requested = Signal()
 
     # 后台线程向主线程传递数据的内部信号
-    _tabs_fetched = Signal(list)  # list[OLClass]
+    _tabs_fetched = Signal(list)  # list[Zone]
     _courses_page = Signal(int, list, int, bool)  # gen, courses, total, is_last
     _finish_info_cell = Signal(int, object)  # gen, course
     _fetch_error = Signal(int, str)  # gen, message
@@ -55,7 +55,7 @@ class MainWindow(QMainWindow):
 
         self._courses: list[Course] = []
         self._fetch_gen: int = 0  # 每次刷新递增，用于取消旧的 finishInfo 批量拉取
-        self._tab_data: list[dict] = []  # [{"label": str, "class": OLClass|None}, ...]
+        self._tab_data: list[dict] = []  # [{"label": str, "zone": Zone|None}, ...]
         self._current_tab: int = 0
         self._current_video: Video | None = None  # 当前正在播放的视频
         self._course_items: dict[tuple[str, str], QTreeWidgetItem] = {}
@@ -70,7 +70,7 @@ class MainWindow(QMainWindow):
         self._queue_mgr.videos_loaded.connect(self._on_videos_loaded)
 
         # 连接内部信号
-        self._tabs_fetched.connect(self._add_class_tabs)
+        self._tabs_fetched.connect(self._add_zone_tabs)
         self._courses_page.connect(self._on_courses_page)
         self._finish_info_cell.connect(self._on_finish_info_cell)
         self._fetch_error.connect(self._on_fetch_error)
@@ -126,11 +126,11 @@ class MainWindow(QMainWindow):
         layout.addWidget(splitter, stretch=1)
 
         # ── 左侧专区列表 ────────────────────────────────────────────────────────
-        self._olclass_listbox = QListWidget()
-        self._olclass_listbox.setMaximumWidth(280)
-        self._olclass_listbox.setMinimumWidth(60)
-        self._olclass_listbox.currentRowChanged.connect(self._on_tab_select)
-        splitter.addWidget(self._olclass_listbox)
+        self._zone_listbox = QListWidget()
+        self._zone_listbox.setMaximumWidth(280)
+        self._zone_listbox.setMinimumWidth(60)
+        self._zone_listbox.currentRowChanged.connect(self._on_tab_select)
+        splitter.addWidget(self._zone_listbox)
 
         # ── 中间课程树 ─────────────────────────────────────────────────
         self._course_tree = QTreeWidget()
@@ -225,12 +225,12 @@ class MainWindow(QMainWindow):
 
     def _load_tabs(self) -> None:
         """初始化标签页：先放公开课，再异步追加有效期内的专区。"""
-        self._tab_data = [{"label": "公开课", "class": None}]
-        self._olclass_listbox.blockSignals(True)
-        self._olclass_listbox.clear()
-        self._olclass_listbox.addItem("公开课")
-        self._olclass_listbox.setCurrentRow(0)
-        self._olclass_listbox.blockSignals(False)
+        self._tab_data = [{"label": "公开课", "zone": None}]
+        self._zone_listbox.blockSignals(True)
+        self._zone_listbox.clear()
+        self._zone_listbox.addItem("公开课")
+        self._zone_listbox.setCurrentRow(0)
+        self._zone_listbox.blockSignals(False)
         self._current_tab = 0
         self._load_courses()
         threading.Thread(target=self._fetch_tabs, daemon=True).start()
@@ -238,16 +238,16 @@ class MainWindow(QMainWindow):
     def _fetch_tabs(self) -> None:
         """后台拉取专区列表，追加到标签栏。"""
         try:
-            classes = course_api.get_my_classes()
-            self._tabs_fetched.emit(classes)
+            zones = course_api.get_zone_list()
+            self._tabs_fetched.emit(zones)
         except Exception:  # noqa: BLE001
             pass
 
-    def _add_class_tabs(self, classes: list[OLClass]) -> None:
+    def _add_zone_tabs(self, zones: list[Zone]) -> None:
         """将有效专区追加到标签页列表。"""
-        for c in classes:
-            self._tab_data.append({"label": c.class_name, "class": c})
-            self._olclass_listbox.addItem(c.class_name)
+        for z in zones:
+            self._tab_data.append({"label": z.class_name, "zone": z})
+            self._zone_listbox.addItem(z.class_name)
 
     def _on_tab_select(self, idx: int) -> None:
         """切换标签页时重新加载对应课程列表。"""
@@ -263,18 +263,18 @@ class MainWindow(QMainWindow):
 
     def _fetch_courses(self) -> None:
         gen = self._fetch_gen
-        ol_class = self._tab_data[self._current_tab]["class"] if self._tab_data else None
+        zone = self._tab_data[self._current_tab]["zone"] if self._tab_data else None
 
         try:
-            if ol_class is None:
+            if zone is None:
 
                 def _fetch_page(p: int) -> tuple[list[Course], int, int]:
-                    return course_api.get_openclass_courses(page=p)
+                    return course_api.get_open_courses(page=p)
 
             else:
 
                 def _fetch_page(p: int) -> tuple[list[Course], int, int]:
-                    return course_api.get_onlineclass_courses(ol_class, page=p)
+                    return course_api.get_zone_courses(zone, page=p)
 
             all_courses: list[Course] = []
             page = 1
@@ -302,8 +302,8 @@ class MainWindow(QMainWindow):
                     if self._fetch_gen != gen:
                         break
                     try:
-                        c = future.result()
-                        self._finish_info_cell.emit(gen, c)
+                        course = future.result()
+                        self._finish_info_cell.emit(gen, course)
                     except Exception:  # noqa: BLE001
                         pass
         except Exception as exc:  # noqa: BLE001
