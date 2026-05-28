@@ -11,10 +11,6 @@ def _load_public_key_hex() -> str:
     """将 base64 公钥解码为十六进制字符串（去掉 04 前缀）。"""
     pk_bytes = base64.b64decode(SM2_PUBLIC_KEY_B64)
     pk_hex = pk_bytes.hex()
-    # SM2 非压缩公钥以 04 开头 (04 || x || y)
-    # gmssl 的 CryptSM2 只需要 x+y 部分（128 hex 字符）
-    if pk_hex.startswith("04"):
-        return pk_hex[2:]
     return pk_hex
 
 

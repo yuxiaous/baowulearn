@@ -244,6 +244,7 @@ def compute_zone_finish(zone: Zone) -> None:
     payload = {
         "classNo": zone.class_no,
     }
+    print(f"计算专区完成情况: {zone.class_name} ({zone.class_no})")
     resp = client.post(url, json=payload)
     if not resp.get("isSuccess"):
         raise RuntimeError(f"触发计算专区完成情况失败: {resp.get('message', resp)}")

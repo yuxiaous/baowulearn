@@ -62,9 +62,7 @@ BASE_URL = "https://learn.baowugroup.com/learn-gateway/service"
 
 # SM2 非对称加密公钥 (base64编码)，从前端 JS 中提取
 # JS 来源: const zi = {sm2PublicKey: "...", algorithm: "SM2"}
-SM2_PUBLIC_KEY_B64 = (
-    "BJeYoHWNsf60Vr2wPJWEWRvjH6m5r/JvK7Pww8SdohnwAkHKVy0tikYYOYmuKhR83BUS+duMyjAbVtyXZTfc+jY="
-)
+SM2_PUBLIC_KEY_B64 = "BJeYoHWNsf60Vr2wPJWEWRvjH6m5r/JvK7Pww8SdohnwAkHKVy0tikYYOYmuKhR83BUS+duMyjAbVtyXZTfc+jY="
 
 # 请求头
 DEFAULT_HEADERS = {

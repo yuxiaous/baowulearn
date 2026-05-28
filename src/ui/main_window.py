@@ -304,9 +304,10 @@ class MainWindow(QMainWindow):
                     try:
                         course = future.result()
                         self._finish_info_cell.emit(gen, course)
-                    except Exception:  # noqa: BLE001
-                        pass
+                    except Exception as exc:  # noqa: BLE001
+                        print("[Error] Fetching course finish info:", exc)
         except Exception as exc:  # noqa: BLE001
+            print("[Error] Fetching courses:", exc)
             self._fetch_error.emit(gen, str(exc))
 
     def _populate_tree(self, courses: list[Course]) -> None:

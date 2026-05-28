@@ -38,9 +38,7 @@ class LoginWindow(QDialog):
         super().__init__(parent)
         self.setWindowTitle(f"宝武学习系统 V{config.VERSION}")
         self.setWindowIcon(QIcon(str(config.ASSETS_DIR / "favicon.ico")))
-        self.setWindowFlags(
-            self.windowFlags() & ~Qt.WindowContextHelpButtonHint | Qt.WindowCloseButtonHint
-        )
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint | Qt.WindowCloseButtonHint)
 
         self._captcha_id: str = ""
 
