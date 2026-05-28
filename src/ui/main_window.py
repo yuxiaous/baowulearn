@@ -178,11 +178,7 @@ class MainWindow(QMainWindow):
     @staticmethod
     def _course_status_str(course: Course) -> str:
         """状态列显示文字。"""
-        if course.hang_status == HangStatus.HANGING:
-            return "挂机中"
-        if course.hang_status == HangStatus.WAITING:
-            return "等待中"
-        return "已完成" if course.is_completed else "未完成"
+        return course.display_status
 
     @staticmethod
     def _course_score_str(course: Course) -> str:

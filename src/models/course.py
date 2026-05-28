@@ -54,23 +54,15 @@ class Course:
     # ── 派生属性 ────────────────────────────────────────────────────────────────
 
     @property
-    def total_seconds(self) -> int:
-        """课程总时长（秒）。"""
-        return int(self.course_hours * 3600)
-
-    @property
     def display_status(self) -> str:
         """UI 显示用状态文字。"""
         if self.hang_status == HangStatus.HANGING:
             return "挂机中"
         if self.hang_status == HangStatus.WAITING:
             return "等待中"
-        mapping = {
-            LearnStatus.UNLEARNED: "未学习",
-            LearnStatus.LEARNING: "学习中",
-            LearnStatus.COMPLETED: "已完成",
-        }
-        return mapping.get(self.learn_status, str(self.learn_status))
+        if self.is_completed:
+            return "已完成"
+        return "未完成"
 
     @property
     def is_completed(self) -> bool:
