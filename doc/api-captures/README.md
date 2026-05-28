@@ -80,7 +80,7 @@
 
 拿到课程标识后，先用 [course-detail.md](./course-detail.md) 查询课程详情，再用 [course-outline.md](./course-outline.md) 获取视频目录。目录接口会返回具体视频的 `cataNo`、`wareId`/`wareCode`、`wareType` 和 `markeTimePoint`，这些字段会直接进入后续播放链路。
 
-真正开始学习前，需要调用 [learn-init-record.md](./learn-init-record.md) 建立学习会话，并生成后续心跳和打点接口要复用的 `pageId`。随后可通过 [learn-playback-progress.md](./learn-playback-progress.md) 恢复历史播放进度，再结合 [learn-video-event.md](./learn-video-event.md)、[learn-heartbeat.md](./learn-heartbeat.md) 和 [learn-mark-progress.md](./learn-mark-progress.md) 完成动作上报、心跳累计和关键时间点打卡。
+真正开始学习前，需要调用 [learn-init-record.md](./learn-init-record.md) 建立学习会话，并生成后续心跳和打点接口要复用的 `pageId`。随后可通过 [learn-playback-progress.md](./learn-playback-progress.md) 恢复历史播放进度，并可通过 [learn-heartbeat-interval.md](./learn-heartbeat-interval.md) 读取服务端配置的心跳发送间隔，再结合 [learn-video-event.md](./learn-video-event.md)、[learn-heartbeat.md](./learn-heartbeat.md) 和 [learn-mark-progress.md](./learn-mark-progress.md) 完成动作上报、心跳累计和关键时间点打卡。
 
 当视频达到完成条件后，通常还要继续调用 [compute-video-finish.md](./compute-video-finish.md) 和 [compute-course-finish.md](./compute-course-finish.md) 触发服务端重算，最后再通过 [stats-course-finish.md](./stats-course-finish.md) 查看课程完成情况和得分进度。
 
@@ -123,12 +123,13 @@
 
 ### 学习初始化与进度恢复接口
 
-这组接口负责在真正播放前建立学习会话、恢复历史进度。它们的输出会直接影响播放器从哪里开始、后续请求携带哪个会话标识。
+这组接口负责在真正播放前建立学习会话、恢复历史进度，并读取播放前需要确定的关键配置。它们的输出会直接影响播放器从哪里开始、后续请求携带哪个会话标识，以及心跳按什么频率发送。
 
 | 接口 | 路径 | 主要作用 | 结果关注点 |
 | --- | --- | --- | --- |
 | [learn-init-record.md](./learn-init-record.md) | `/tms/ols/learnRecord/initLearnRecord` | 初始化学习会话 | `pageId` 对应的默认节点、`lastPlayTime` |
 | [learn-playback-progress.md](./learn-playback-progress.md) | `/tms/ols/learnWareProgress/getMaxTimeAndLastTime` | 查询历史播放进度 | `maxPlayTime`、`lastPlayTime` |
+| [learn-heartbeat-interval.md](./learn-heartbeat-interval.md) | `/ss/properties/queryPropValue` | 查询学习心跳发送间隔 | `propertiesValue`、`propertiesDesc` |
 
 ### 播放过程上报接口
 
