@@ -21,14 +21,14 @@ def get_zone_list(
         "current": page,
         "size": page_size,
         "data": {
-            "classType": "ZE0",  # 只查询学习专区
+            "classType": "ZE0",  # "ZE0" 学习专区
             "isLearnNum": "1",
-            "keyWord": "",
+            "keyWord": "",  # 搜索过滤字段
             "lastLearnTime": "1",
             "learnStatus": "",
             "sortClass": "1",
             "sortType": "desc",
-            "status": "1",  # 只查询进行中的专区
+            "status": "1",  # "" 全部，"1" 进行中，"2" 已结束
         },
     }
     resp = client.post(url, json=payload)
@@ -36,20 +36,21 @@ def get_zone_list(
         raise RuntimeError(f"获取专区列表失败: {resp.get('message', resp)}")
 
     records = resp["data"].get("records", [])
-    return [
+    zones = [
         Zone(
-            class_guid=str(record.get("guid", "")),
-            class_no=str(record.get("olClassNo", "")),
-            class_name=str(record.get("olClassName", "")),
-            class_type=str(record.get("olClassType", "")),
-            begin_time=str(record.get("beginTime", None)),
-            end_time=str(record.get("endTime", None)),
-            center_code=str(record.get("centerCode", "")),
-            tenant_code=str(record.get("tenantCode", "")),
-            course_num=int(record.get("courseNum", 0)),
+            class_guid=record.get("guid"),
+            class_no=record.get("olClassNo"),
+            class_name=record.get("olClassName"),
+            class_type=record.get("olClassType"),  # 专区类型 ZE0 学习专区
+            begin_time=record.get("beginTime"),  # 专区开始时间
+            end_time=record.get("endTime"),  # 专区结束时间
+            center_code=record.get("centerCode") or "",  # 中心编号
+            tenant_code=record.get("tenantCode") or "",  # 租户编号
+            course_num=int(record.get("courseNum") or 0),  # 课程数量
         )
         for record in records
     ]
+    return zones
 
 
 # ── 获取公开课列表 ──────────────────────────────────────────────────────────────
@@ -69,7 +70,7 @@ def get_open_courses(
         "size": page_size,
         "data": {
             "learnStatus": "",
-            "searchInfo": "",
+            "searchInfo": "",  # 搜索过滤字段
             "searchType": "1",  # "1" 全部, "2" 学习中, "3" 已完成
             "sortClass": "1",
             "sortType": "desc",
@@ -86,18 +87,18 @@ def get_open_courses(
 
     courses = [
         Course(
-            course_guid=str(record.get("courseGuid", "")),
-            course_no=str(record.get("courseNo", "")),
-            course_name=str(record.get("courseName", "")),
-            class_no=str(record.get("olClassNo", "")),
-            class_name=str(record.get("olClassName", "")),
-            class_type=str(record.get("olClassType", "")),
-            center_code=str(record.get("centerCode", None)),
-            tenant_code=str(record.get("tenantCode", None)),
-            learn_status=str(record.get("learnStatus", None)),
-            course_hours=float(record.get("courseHours", 0.0)),
-            begin_time=str(record.get("courseBeginTime", None)),
-            end_time=str(record.get("courseEndTime", None)),
+            course_guid=record.get("courseGuid"),
+            course_no=record.get("courseNo"),
+            course_name=record.get("courseName"),
+            class_no=record.get("olClassNo") or "",
+            class_name=record.get("olClassName") or "",
+            class_type=record.get("olClassType") or "",  # 专区类型 "OCE" 公开课
+            center_code=record.get("centerCode"),  # 中心编号
+            tenant_code=record.get("tenantCode"),  # 租户编号
+            learn_status=record.get("learnStatus") or "0",  # 服务端状态：None 未学习, "1"学习中, "2"已完成
+            course_hours=float(record.get("courseHours") or 0.0),  # 课程学时
+            begin_time=record.get("courseBeginTime"),  # 学习开始时间
+            end_time=record.get("courseEndTime"),  # 学习结束时间
         )
         for record in records
     ]
@@ -121,13 +122,13 @@ def get_zone_courses(
         "current": page,
         "size": page_size,
         "data": {
-            "centerCode": "C001",
+            "centerCode": "C001",  # 中心编号
             "courseName": "",  # 搜索关键词，模糊匹配课程名称
             "courseTypeCode": "",
             "isMine": "1",
             "isRecursiveCourse": "1",
-            "olClassNo": zone.class_no,  # 专区编号
-            "olClassType": zone.class_type,
+            "olClassNo": zone.class_no,  # 专区号
+            "olClassType": zone.class_type,  # 专区类型
         },
     }
     resp = client.post(url, json=payload)
@@ -141,17 +142,17 @@ def get_zone_courses(
 
     courses = [
         Course(
-            course_guid=str(record.get("guid", "")),
-            course_no=str(record.get("courseNo", "")),
-            course_name=str(record.get("courseName", "")),
-            class_no=str(record.get("olClassNo", "")),
-            class_name=str(record.get("olClassName", "")),
-            class_type=str(record.get("olClassType", "")),
-            center_code=str(record.get("centerCode", None)),
-            tenant_code="BSTA",
-            learn_status=str(record.get("learnStatus", None)),
-            begin_time=str(record.get("beginTime", None)),
-            end_time=str(record.get("endTime", None)),
+            course_guid=record.get("guid"),
+            course_no=record.get("courseNo"),
+            course_name=record.get("courseName"),
+            class_no=zone.class_no,
+            class_name=zone.class_name,
+            class_type=zone.class_type,
+            center_code=zone.center_code,  # 中心编号
+            tenant_code=zone.tenant_code,  # 租户编号
+            learn_status=record.get("learnStatus") or "0",  # 服务端状态：None 未知, "1"学习中, "2"已完成
+            begin_time=record.get("beginTime"),  # 学习开始时间
+            end_time=record.get("endTime"),  # 学习结束时间
         )
         for record in records
     ]
@@ -175,17 +176,19 @@ def get_course_detail(course: Course) -> Course:
 
     data = resp["data"]
     course._course_detail = data
-    course.course_guid = str(data.get("guid", ""))
-    course.course_no = str(data.get("courseNo", ""))
-    course.course_name = str(data.get("courseName", ""))
-    course.class_no = str(data.get("olClassNo", ""))
-    course.class_name = str(data.get("olClassName", ""))
-    course.class_type = str(data.get("olClassType", ""))
-    course.center_code = str(data.get("centerCode", None))
-    course.tenant_code = str(data.get("tenantCode", None))
-    course.course_hours = float(data.get("courseHours", 0.0))
-    course.begin_time = str(data.get("beginTime", None))
-    course.end_time = str(data.get("endTime", None))
+
+    course.course_guid = data.get("guid")
+    course.course_no = data.get("courseNo")
+    course.course_name = data.get("courseName")
+    course.class_no = data.get("olClassNo")
+    course.class_name = data.get("olClassName")
+    course.class_type = data.get("olClassType")
+    course.center_code = data.get("centerCode")  # 中心编号
+    course.tenant_code = data.get("tenantCode")  # 租户编号
+    course.course_hours = float(data.get("courseHours") or 0.0)  # 课程学时
+    course.begin_time = data.get("beginTime")  # 学习开始时间
+    course.end_time = data.get("endTime")  # 学习结束时间
+
     return course
 
 
@@ -221,13 +224,20 @@ def get_course_finish_info(course: Course) -> Course:
 
     data = resp["data"]
     course._finish_info = data
-    if data.get("learnStatus") is not None:
-        course.learn_status = str(data["learnStatus"])
-    course.course_score = float(data.get("learnScore") or 0.0)
 
+    # 学习状态
+    if data.get("learnStatus") is not None:
+        course.learn_status = data.get("learnStatus")
+    # 课程成绩
+    if data.get("learnScore") is not None:
+        course.course_score = float(data.get("learnScore") or 0.0)
+    # 其他数据
     for detail in data.get("details") or []:
+        # attributeCode: CE001 考试成绩, CE002 学习时长, CE009 课程调查
         if detail.get("attributeCode") == "CE002":  # 学习时长
+            # 课程总时长（分钟）
             course.course_duration = float(detail.get("predValue") or 0.0)
+            # 课程完成时间（分钟）
             course.course_finished = float(detail.get("finishValue") or 0.0)
 
     return course
