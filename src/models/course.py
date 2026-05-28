@@ -14,6 +14,14 @@ class HangStatus(Enum):
     HANGING = "hanging"  # 正在挂机
 
 
+class LearnStatus(Enum):
+    """课程学习状态（服务端字段）。"""
+
+    UNLEARNED = "0"  # 未学习
+    LEARNING = "1"  # 学习中
+    COMPLETED = "2"  # 已完成
+
+
 @dataclass
 class Course:
     """一门课程的完整信息。"""
@@ -28,7 +36,7 @@ class Course:
     tenant_code: str = None  # 租户编码 (BSTA)
     begin_time: str = None  # 学习开始时间（格式 "2024-01-01"）
     end_time: str = None  # 学习结束时间（格式 "2024-01-01"）
-    learn_status: str = "0"  # 学习状态："0"未学习, "1"学习中, "2"已完成
+    learn_status: LearnStatus = LearnStatus.UNLEARNED  # 学习状态："0"未学习, "1"学习中, "2"已完成
     course_hours: float = 0.0  # 课程学时
     course_score: float = 0.0  # 课程成绩
     course_duration: float = 0  # 课程总时长（分钟）
@@ -57,9 +65,13 @@ class Course:
             return "挂机中"
         if self.hang_status == HangStatus.WAITING:
             return "等待中"
-        mapping = {"0": "未学习", "1": "学习中", "2": "已完成"}
-        return mapping.get(self.learn_status, self.learn_status)
+        mapping = {
+            LearnStatus.UNLEARNED: "未学习",
+            LearnStatus.LEARNING: "学习中",
+            LearnStatus.COMPLETED: "已完成",
+        }
+        return mapping.get(self.learn_status, str(self.learn_status))
 
     @property
     def is_completed(self) -> bool:
-        return self.learn_status == "2"
+        return self.learn_status == LearnStatus.COMPLETED

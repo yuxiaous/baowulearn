@@ -221,7 +221,7 @@ class HeartbeatWorker:
                 return
             except Exception as exc:  # noqa: BLE001
                 last_exc = exc
-                print(f"Error: API 调用失败（第 {attempt + 1} 次）: {last_exc}", file=sys.stderr)
+                print(f"[Error] API 调用失败（第 {attempt + 1} 次）: {last_exc}", file=sys.stderr)
                 if attempt < retries - 1:
                     time.sleep(3)
         raise last_exc

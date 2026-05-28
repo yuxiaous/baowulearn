@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from api import client
-from models.course import Course
+from models.course import Course, LearnStatus
 from models.zone import Zone
 
 # ── 获取专区列表 ──────────────────────────────────────────────────────────────
@@ -95,7 +95,7 @@ def get_open_courses(
             class_type=record.get("olClassType") or "",  # 专区类型 "OCE" 公开课
             center_code=record.get("centerCode"),  # 中心编号
             tenant_code=record.get("tenantCode"),  # 租户编号
-            learn_status=record.get("learnStatus") or "0",  # 服务端状态：None 未学习, "1"学习中, "2"已完成
+            learn_status=LearnStatus(record.get("learnStatus") or "0"),  # 服务端状态：None 未学习, "1"学习中, "2"已完成
             course_hours=float(record.get("courseHours") or 0.0),  # 课程学时
             begin_time=record.get("courseBeginTime"),  # 学习开始时间
             end_time=record.get("courseEndTime"),  # 学习结束时间
@@ -150,7 +150,7 @@ def get_zone_courses(
             class_type=zone.class_type,
             center_code=zone.center_code,  # 中心编号
             tenant_code=zone.tenant_code,  # 租户编号
-            learn_status=record.get("learnStatus") or "0",  # 服务端状态：None 未知, "1"学习中, "2"已完成
+            learn_status=LearnStatus(record.get("learnStatus") or "0"),  # 服务端状态：None 未知, "1"学习中, "2"已完成
             begin_time=record.get("beginTime"),  # 学习开始时间
             end_time=record.get("endTime"),  # 学习结束时间
         )
@@ -227,7 +227,7 @@ def get_course_finish_info(course: Course) -> Course:
 
     # 学习状态
     if data.get("learnStatus") is not None:
-        course.learn_status = data.get("learnStatus")
+        course.learn_status = LearnStatus(data.get("learnStatus"))
     # 课程成绩
     if data.get("learnScore") is not None:
         course.course_score = float(data.get("learnScore") or 0.0)
