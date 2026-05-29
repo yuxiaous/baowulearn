@@ -27,14 +27,15 @@ POST https://learn.baowugroup.com/learn-gateway/service/tms/ols/learnVideoRecord
 
 ### 场景说明
 
-- `operateType: "1"`: 开始播放或从暂停恢复播放。
-- `operateType: "2"`: 暂停播放或结束播放。
-- `operateType: "4"`: 拖动进度条，需同时带上拖动起止时间。
-- `operateType: "5"`: 页面从失焦恢复到前台时上报。
+- `operateType: "1"`: 视频开始播放或恢复播放。
+- `operateType: "2"`: 视频暂停播放或结束播放。
+- `operateType: "3"`: 用户离开视频播放页面。
+- `operateType: "4"`: 用户拖动进度条。
+- `operateType: "5"`: 页面从失焦恢复到前台。
 
 ### 请求体
 
-### 视频开始 - 开启或恢复时调用
+### operateType="1", videoStatus="1" - 视频开始播放或恢复播放
 
 ```json
 {
@@ -51,7 +52,7 @@ POST https://learn.baowugroup.com/learn-gateway/service/tms/ols/learnVideoRecord
 }
 ```
 
-### 视频停止 - 暂停或结束时调用
+### operateType="2", videoStatus="2" - 视频暂停播放或结束播放
 
 ```json
 {
@@ -68,8 +69,24 @@ POST https://learn.baowugroup.com/learn-gateway/service/tms/ols/learnVideoRecord
 }
 ```
 
+### operateType="3", videoStatus="0" - 用户离开视频播放页面
 
-### 拖动进度条 - 拖动进度条时调用
+```json
+{
+    "cataNo": "2042131486236348416",
+    "classCourseCenterCode": "C001",
+    "courseNo": "1L2BSTA000240",
+    "olClassNo": "1997868434762895360",
+    "operateType": "3",
+    "videoBeginTime": "00:04:31",
+    "videoSpeed": 1,
+    "videoStatus": "0",
+    "wareId": "2042131531195092992",
+    "wareType": "1"
+}
+```
+
+### operateType="4", videoStatus="1" - 用户拖动进度条
 
 ```json
 {
@@ -88,7 +105,7 @@ POST https://learn.baowugroup.com/learn-gateway/service/tms/ols/learnVideoRecord
 }
 ```
 
-### 成为焦点 - 从非焦点成为焦点时调用
+### operateType="5", videoStatus="1" - 页面从失焦恢复到前台
 
 ```json
 {
