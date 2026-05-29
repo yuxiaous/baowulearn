@@ -82,7 +82,7 @@
 
 真正开始学习前，需要调用 [learn-init-record.md](./learn-init-record.md) 建立学习会话，并生成后续心跳和打点接口要复用的 `pageId`。随后可通过 [learn-playback-progress.md](./learn-playback-progress.md) 恢复历史播放进度，并可通过 [learn-heartbeat-interval.md](./learn-heartbeat-interval.md) 读取服务端配置的心跳发送间隔，再结合 [learn-video-event.md](./learn-video-event.md)、[learn-heartbeat.md](./learn-heartbeat.md) 和 [learn-mark-progress.md](./learn-mark-progress.md) 完成动作上报、心跳累计和关键时间点打卡。
 
-当视频达到完成条件后，通常还要继续调用 [compute-video-finish.md](./compute-video-finish.md) 和 [compute-course-finish.md](./compute-course-finish.md) 触发服务端重算，最后再通过 [stats-course-finish.md](./stats-course-finish.md) 查看课程完成情况和得分进度。
+当视频达到完成条件后，通常还要继续调用 [compute-video-finish.md](./compute-video-finish.md) 和 [compute-course-finish.md](./compute-course-finish.md) 触发服务端重算，最后再通过 [stats-course.md](./stats-course.md) 查看课程完成情况和得分进度。
 
 ### 专区学习链路
 
@@ -90,7 +90,7 @@
 
 当进入某门课程后，后续学习流程与公开课一致，仍然会依次使用课程详情、课程目录、学习初始化、播放事件、心跳、打点和课程完成度刷新接口。
 
-专区链路和公开课链路的主要区别在统计维度。课程学习完成后，除了刷新课程完成度，还可以使用 [compute-zone-finish.md](./compute-zone-finish.md) 触发专区维度的重算，再分别通过 [stats-zone-total.md](./stats-zone-total.md) 查看专区总体完成度，通过 [stats-zone-items.md](./stats-zone-items.md) 查看专区内每门课程的完成情况。
+专区链路和公开课链路的主要区别在统计维度。课程学习完成后，除了刷新课程完成度，还可以使用 [compute-zone-finish.md](./compute-zone-finish.md) 触发专区维度的重算，再分别通过 [stats-zone.md](./stats-zone.md) 查看专区总体完成度，通过 [stats-zone-items.md](./stats-zone-items.md) 查看专区内每门课程的完成情况。
 
 ## 按接口分组说明
 
@@ -150,8 +150,8 @@
 | [compute-video-finish.md](./compute-video-finish.md) | `/tms/ols/computeTask/saveComputeTask4AfterVideoPlayed` | 触发单个视频完成计算 | 计算任务 ID |
 | [compute-course-finish.md](./compute-course-finish.md) | `/tms/ols/computeTask/saveComputeTask4StuCourseDetail` | 刷新课程完成度 | 计算任务 ID |
 | [compute-zone-finish.md](./compute-zone-finish.md) | `/tms/ols/computeTask/saveComputeTask4StuClassDetail` | 刷新区完成度 | 计算任务 ID |
-| [stats-course-finish.md](./stats-course-finish.md) | `/tms/ols/onlineClassCourse/finishInfo` | 查询课程完成情况 | `learnScore`、`learnStatus`、课程明细 |
-| [stats-zone-total.md](./stats-zone-total.md) | `/tms/ols/onlineClass/totalFinishStatistics` | 查询专区总体完成度 | 总体 `learnScore`、`passScore`、统计规则 |
+| [stats-course.md](./stats-course.md) | `/tms/ols/onlineClassCourse/finishInfo` | 查询课程完成情况 | `learnScore`、`learnStatus`、课程明细 |
+| [stats-zone.md](./stats-zone.md) | `/tms/ols/onlineClass/totalFinishStatistics` | 查询专区总体完成度 | 总体 `learnScore`、`passScore`、统计规则 |
 | [stats-zone-items.md](./stats-zone-items.md) | `/tms/ols/onlineClass/itemFinishStatisticsSortPage` | 查询专区课程分项情况 | 课程 `name`、`learnScore`、`learnStatus` |
 
 ## 阅读要点
@@ -238,7 +238,7 @@
 
 业务文件名应优先表达“用途”而不是照抄接口名，例如：
 
-- `finishInfo` -> `stats-course-finish.md`
+- `finishInfo` -> `stats-course.md`
 - `queryCourseOutlineContentTreeListSimple` -> `course-outline.md`
 - `saveLearnHertRecord` -> `learn-heartbeat.md`
 
