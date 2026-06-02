@@ -1,4 +1,4 @@
-# baowulearn
+# 宝武学习系统 (baowulearn)
 
 宝武学习系统桌面挂机工具。项目通过调用学习平台接口、模拟视频播放过程中的开始播放、心跳、进度打卡和结束播放等行为，帮助用户批量完成公开课和学习专区课程。
 
@@ -159,7 +159,8 @@ python build.py
 1. 自动安装 `pyinstaller`
 2. 清理旧的 `dist/baowulearn`
 3. 以 `--onedir --windowed` 方式打包 `src/main.py`
-4. 将 `pyproject.toml` 一并打入产物目录，用于读取版本号
+4. 将 `LICENSE` 和 `third_party_licenses/` 一并打入产物目录
+5. 将 `pyproject.toml` 一并打入产物目录，用于读取版本号
 
 默认输出目录：
 
@@ -212,3 +213,9 @@ dist/baowulearn/
 - 为挂机过程增加可持久化日志
 - 为 API 层补测试和更稳定的返回值校验
 - 为停止流程增加更快的取消响应
+
+## License
+
+本项目采用 MIT License 开源，完整条款见根目录 [LICENSE](./LICENSE)。
+
+打包并分发 exe 时，还应同时分发根目录下的 [third_party_licenses/](./third_party_licenses) 目录，用于保留第三方依赖与 PySide6 相关许可文本。

@@ -39,6 +39,8 @@ def main() -> None:
     args += ["--icon", str(ROOT / "assets" / "favicon.ico")]
     args += ["--add-data", f"pyproject.toml{sep}."]
     args += ["--add-data", f"assets{sep}assets"]
+    args += ["--add-data", f"LICENSE{sep}."]
+    args += ["--add-data", f"third_party_licenses{sep}third_party_licenses"]
     args += ["src/main.py"]
     subprocess.run(args, cwd=ROOT, check=True)
 
