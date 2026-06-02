@@ -1,0 +1,11 @@
+{
+    "recommendations": [
+        // Python 开发基础
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-python.python-envs",
+        "ms-python.debugpy",
+        // 代码格式化与 lint
+        "charliermarsh.ruff",
+    ]
+}
