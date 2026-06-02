@@ -22,16 +22,6 @@ def exe_dir() -> pathlib.Path:
     return pathlib.Path(__file__).parent.parent
 
 
-def _read_version() -> str:
-    project_file = base_dir() / "pyproject.toml"
-    try:
-        text = project_file.read_text(encoding="utf-8")
-        m = re.search(r'^version\s*=\s*"([^"]+)"', text, re.MULTILINE)
-        return m.group(1) if m else "unknown"
-    except OSError:
-        return "unknown"
-
-
 def _load_dotenv() -> None:
     """从 .env 文件加载环境变量，不覆盖已存在的系统变量。"""
     env_file = exe_dir() / ".env"
@@ -48,15 +38,26 @@ def _load_dotenv() -> None:
             os.environ[key] = value
 
 
+def _load_version() -> str:
+    project_file = base_dir() / "pyproject.toml"
+    try:
+        text = project_file.read_text(encoding="utf-8")
+        m = re.search(r'^version\s*=\s*"([^"]+)"', text, re.MULTILINE)
+        os.environ["VERSION"] = m.group(1) if m else "unknown"
+    except OSError:
+        os.environ["VERSION"] = "unknown"
+
+
 _load_dotenv()
+_load_version()
 
-VERSION: str = _read_version()
-
-
-ASSETS_DIR: pathlib.Path = base_dir() / "assets"
+# 版本号
+VERSION: str = os.environ.get("VERSION") or "unknown"
 
 # 从环境变量读取 Token（可在 .env 中配置 TOKEN=xxx）
 TOKEN: str | None = os.environ.get("TOKEN") or None
+
+ASSETS_DIR: pathlib.Path = base_dir() / "assets"
 
 BASE_URL = "https://learn.baowugroup.com/learn-gateway/service"
 

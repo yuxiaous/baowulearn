@@ -23,7 +23,6 @@ from PySide6.QtWidgets import (
 )
 
 from api import course as course_api
-from api import video as video_api
 from core.queue_manager import QueueManager
 from models.course import Course, HangStatus
 from models.zone import Zone
