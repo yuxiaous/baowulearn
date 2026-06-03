@@ -291,7 +291,7 @@ class MainWindow(QMainWindow):
                 return c
 
             with ThreadPoolExecutor(max_workers=8) as pool:
-                futures = {pool.submit(_fetch_one, c): c for c in courses}
+                futures = {pool.submit(_fetch_one, c): c for c in all_courses}
                 for future in as_completed(futures):
                     if self._fetch_gen != gen:
                         break
