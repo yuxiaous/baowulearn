@@ -153,6 +153,7 @@ def get_zone_courses(
             learn_status=LearnStatus(record.get("learnStatus") or "0"),  # 服务端状态：None 未知, "1"学习中, "2"已完成
             begin_time=record.get("beginTime"),  # 学习开始时间
             end_time=record.get("endTime"),  # 学习结束时间
+            zone=zone,  # 所属专区
         )
         for record in records
     ]

@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 
+from models.zone import Zone
+
 
 class HangStatus(Enum):
     """本地挂机状态（覆盖在服务端 learnStatus 之上）。"""
@@ -41,6 +43,8 @@ class Course:
     course_score: float = 0.0  # 课程成绩
     course_duration: float = 0  # 课程总时长（分钟）
     course_finished: float = 0  # 课程完成时间 (分钟)
+
+    zone: Zone = None  # 所属专区
 
     # 课程详情（原始接口返回的全部字段）
     _course_detail: dict | None = field(default=None, compare=False)

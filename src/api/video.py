@@ -79,6 +79,7 @@ def get_course_videos(course: Course) -> list[Video]:
                         mark_points=parse_mark_points(item.get("markeTimePoint", "")),
                         learned_status=str(item.get("learnedStatus", None)),
                         index=idx,
+                        course=course,
                     )
                 )
                 idx += 1
@@ -88,7 +89,7 @@ def get_course_videos(course: Course) -> list[Video]:
 # ── 学习记录初始化 ─────────────────────────────────────────────────────────────
 
 
-def init_learn_record(course: Course, page_id: str) -> None:
+def init_learn_record(course: Course, page_id: str) -> tuple[str, str]:
     """
     初始化学习记录，每次开始观看课程时调用一次。
     可以获取到上次的学习进度（续播用）。

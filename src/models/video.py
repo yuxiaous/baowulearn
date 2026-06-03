@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from models.course import Course
+
 
 @dataclass
 class Video:
@@ -28,6 +30,8 @@ class Video:
     play_progress: int = 0  # 已播放进度（秒），由 get_playback_progress 填充
 
     index: int = 0  # 在课程中的序号（0起）
+
+    course: Course = None  # 所属课程
 
     @property
     def name(self) -> str:

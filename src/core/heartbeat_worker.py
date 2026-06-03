@@ -113,7 +113,8 @@ class HeartbeatWorker:
             return
 
         if not self._stop_event.is_set():
-            course_api.compute_zone_finish(course)
+            if course.zone:
+                course_api.compute_zone_finish(course.zone)
             self._listener.on_course_complete(course)
 
     # ── 单视频观看流程 ─────────────────────────────────────────────────────────
