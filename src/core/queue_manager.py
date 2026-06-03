@@ -146,9 +146,13 @@ class QueueManager(QObject):
         self._start_next()
 
     def _handle_error(self, course: Course, msg: str) -> None:
+        # 清空队列中所有课程
+        for c in self._queue:
+            c.hang_status = HangStatus.IDLE
+        self._queue.clear()
+        # 停止当前课程
         course.hang_status = HangStatus.IDLE
         self._worker = None
         self._current_course = None
         self.error_occurred.emit(f"挂机出错（{course.course_name}）: {msg}")
         self.state_changed.emit()
-        self._start_next()
