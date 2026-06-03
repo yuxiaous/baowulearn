@@ -260,16 +260,16 @@ class MainWindow(QMainWindow):
         gen = self._fetch_gen
         zone = self._tab_data[self._current_tab]["zone"] if self._tab_data else None
 
-        try:
-            if zone is None:
-
-                def _fetch_page(p: int) -> tuple[list[Course], int, int]:
-                    return course_api.get_open_courses(page=p)
-
+        def _fetch_page(z: Zone, p: int) -> tuple[list[Course], int, int]:
+            if z is None:
+                return course_api.get_open_courses(page=p)
             else:
+                return course_api.get_zone_courses(zone=z, page=p)
 
-                def _fetch_page(p: int) -> tuple[list[Course], int, int]:
-                    return course_api.get_zone_courses(zone, page=p)
+        try:
+            # 获取专区课程前，先完成专区的完成情况计算，以便后续课程完成情况的正确显示
+            if zone:
+                course_api.compute_zone_finish(zone)
 
             all_courses: list[Course] = []
             page = 1
@@ -277,9 +277,8 @@ class MainWindow(QMainWindow):
             while page <= total_pages:
                 if self._fetch_gen != gen:
                     return
-                courses, total_courses, total_pages = _fetch_page(page)
+                courses, total_courses, total_pages = _fetch_page(zone, page)
                 all_courses.extend(courses)
-                courses = all_courses
                 is_last = page >= total_pages
                 self._courses_page.emit(gen, list(all_courses), total_courses, is_last)
                 page += 1
