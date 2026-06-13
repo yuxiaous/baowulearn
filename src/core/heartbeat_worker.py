@@ -194,20 +194,6 @@ class HeartbeatWorker:
 
         self._listener.on_video_complete(course, video)
 
-    # ── 容错调用 ──────────────────────────────────────────────────────────────
-
-    def _topup_if_needed(self, videos: list[Video]) -> None:
-        """全部视频完成后，若课程完成时间仍未达总时长，则补播。"""
-        course = self._course
-        self._refresh_finish_info()  # 取最新数据
-
-        if course.course_duration <= 0:
-            return
-        if course.course_finished >= course.course_duration:
-            return
-        if self._stop_event.is_set():
-            return
-
     def _refresh_finish_info(self) -> None:
         """触发服务端重算。"""
         course_api.compute_course_finish(self._course)
