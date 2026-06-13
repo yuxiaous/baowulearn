@@ -1,4 +1,4 @@
-# 学习专区列表（集团站点）
+# 获取学习专区列表
 
 > 原始接口名：queryMainOnlineClassPage
 
@@ -34,7 +34,7 @@ POST https://learn.baowugroup.com/learn-gateway/service/tms/ols/onlineClass/quer
     "olClassType": "ZE0",
     "searchInfo": "",
     "userSource": "1",
-    "centerCode": "C001",
+    "centerCode": "C001", // C001集团站点，C002人才开发院
     "isMine": "1",
     "sortFlag": 5
   }

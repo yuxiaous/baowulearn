@@ -9,19 +9,20 @@ from models.zone import Zone
 # ── 获取专区列表 ──────────────────────────────────────────────────────────────
 
 
-def get_zone_c001_list(
+def get_zone_list(
+    center_code: str,
     page: int = 1,
     page_size: int = 96,
 ) -> list[Zone]:
     """
-    获取专区列表（专区标签页使用）。
+    获取专区列表。
     """
     url = "/tms/ols/onlineClass/queryMainOnlineClassPage"
     payload = {
         "current": page,
         "size": page_size,
         "data": {
-            "centerCode": "C001",
+            "centerCode": center_code,  # 中心编号 C001 集团站点, C002 人才开发院
             "olClassCode": "",
             "olClassType": "ZE0",
             "searchInfo": "",
@@ -32,7 +33,7 @@ def get_zone_c001_list(
     }
     resp = client.post(url, json=payload)
     if not resp.get("isSuccess"):
-        raise RuntimeError(f"获取专区列表失败: {resp.get('message', resp)}")
+        raise RuntimeError(f"获取专区{center_code}列表失败: {resp.get('message', resp)}")
 
     records = resp["data"].get("records", [])
     zones = [
@@ -109,7 +110,7 @@ def get_open_courses(
 def get_zone_courses(
     zone: Zone,
     page: int = 1,
-    page_size: int = 5,
+    page_size: int = 4,
 ) -> tuple[list[Course], int, int]:
     """
     获取专区课程列表（单页）。
@@ -120,7 +121,7 @@ def get_zone_courses(
         "current": page,
         "size": page_size,
         "data": {
-            "centerCode": "C001",  # 中心编号
+            "centerCode": zone.center_code,  # 中心编号
             "courseName": "",  # 搜索关键词，模糊匹配课程名称
             "courseTypeCode": "",
             "isMine": "1",
