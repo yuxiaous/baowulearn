@@ -9,6 +9,11 @@ dependencies = [
     "pyside6",
 ]
 
+[dependency-groups]
+dev = [
+    "pyinstaller",
+]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
