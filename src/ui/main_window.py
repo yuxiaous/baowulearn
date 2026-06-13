@@ -233,7 +233,7 @@ class MainWindow(QMainWindow):
     def _fetch_tabs(self) -> None:
         """后台拉取专区列表，追加到标签栏。"""
         try:
-            zones = course_api.get_zone_list()
+            zones = course_api.get_zone_c001_list()
             self._tabs_fetched.emit(zones)
         except Exception:  # noqa: BLE001
             pass

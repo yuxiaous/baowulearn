@@ -9,26 +9,25 @@ from models.zone import Zone
 # ── 获取专区列表 ──────────────────────────────────────────────────────────────
 
 
-def get_zone_list(
+def get_zone_c001_list(
     page: int = 1,
-    page_size: int = 10,
+    page_size: int = 96,
 ) -> list[Zone]:
     """
     获取专区列表（专区标签页使用）。
     """
-    url = "/tms/ols/student/myClassPage"
+    url = "/tms/ols/onlineClass/queryMainOnlineClassPage"
     payload = {
         "current": page,
         "size": page_size,
         "data": {
-            "classType": "ZE0",  # "ZE0" 学习专区
-            "isLearnNum": "1",
-            "keyWord": "",  # 搜索过滤字段
-            "lastLearnTime": "1",
-            "learnStatus": "",
-            "sortClass": "1",
-            "sortType": "desc",
-            "status": "1",  # "" 全部，"1" 进行中，"2" 已结束
+            "centerCode": "C001",
+            "olClassCode": "",
+            "olClassType": "ZE0",
+            "searchInfo": "",
+            "userSource": "1",
+            "isMine": "1",
+            "sortFlag": 5,
         },
     }
     resp = client.post(url, json=payload)
@@ -46,7 +45,6 @@ def get_zone_list(
             end_time=record.get("endTime"),  # 专区结束时间
             center_code=record.get("centerCode") or "",  # 中心编号
             tenant_code=record.get("tenantCode") or "",  # 租户编号
-            course_num=int(record.get("courseNum") or 0),  # 课程数量
         )
         for record in records
     ]

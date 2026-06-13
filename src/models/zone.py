@@ -17,4 +17,3 @@ class Zone:
     end_time: str = None  # 专区结束时间（格式 "2024-01-01"）
     center_code: str = ""  # 专区编号
     tenant_code: str = ""  # 租户编码
-    course_num: int = 0  # 课程数量
