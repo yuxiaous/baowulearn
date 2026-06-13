@@ -204,6 +204,7 @@ def compute_course_finish(course: Course) -> None:
         "classNo": course.class_no,
         "courseNo": course.course_no,
     }
+    print(f"计算课程完成情况: {course.course_name} ({course.course_no})")
     resp = client.post(url, json=payload)
     if not resp.get("isSuccess"):
         raise RuntimeError(f"触发计算课程完成情况失败: {resp.get('message', resp)}")
