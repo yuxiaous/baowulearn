@@ -158,10 +158,10 @@ def start_video_event(course: Course, video: Video, begin_secs: int = 0) -> None
         "wareId": video.ware_id,
         "wareType": video.ware_type,
     }
-    print(f"开始播放视频: {video.video_name} @ {secs_to_hhmmss(begin_secs)}")
+    print(f"开始播放视频事件: {video.video_name} @ {secs_to_hhmmss(begin_secs)}")
     resp = client.post(url, json=payload)
     if not resp.get("isSuccess"):
-        raise RuntimeError(f"开始播放视频失败: {resp.get('message', resp)}")
+        raise RuntimeError(f"开始播放视频事件失败: {resp.get('message', resp)}")
 
 
 def end_video_event(course: Course, video: Video, end_secs: int) -> None:
@@ -179,10 +179,10 @@ def end_video_event(course: Course, video: Video, end_secs: int) -> None:
         "wareId": video.ware_id,
         "wareType": video.ware_type,
     }
-    print(f"停止播放视频: {video.video_name} @ {secs_to_hhmmss(end_secs)}")
+    print(f"停止播放视频事件: {video.video_name} @ {secs_to_hhmmss(end_secs)}")
     resp = client.post(url, json=payload)
     if not resp.get("isSuccess"):
-        raise RuntimeError(f"停止播放视频失败: {resp.get('message', resp)}")
+        raise RuntimeError(f"停止播放视频事件失败: {resp.get('message', resp)}")
 
 
 # ── 心跳 ──────────────────────────────────────────────────────────────────────
@@ -261,10 +261,10 @@ def compute_video_finish(course: Course, video: Video) -> None:
         "classNo": course.class_no,
         "courseNo": course.course_no,
     }
-    print(f"完成视频: {video.video_name}")
+    print(f"更新视频完成情况: {video.video_name}")
     resp = client.post(url, json=payload)
     if not resp.get("isSuccess"):
-        raise RuntimeError(f"完成视频失败: {resp.get('message', resp)}")
+        raise RuntimeError(f"更新视频完成情况失败: {resp.get('message', resp)}")
 
 
 # ── 心跳频率 ──────────────────────────────────────────────────────────────────

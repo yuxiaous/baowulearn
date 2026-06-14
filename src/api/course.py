@@ -204,10 +204,10 @@ def compute_course_finish(course: Course) -> None:
         "classNo": course.class_no,
         "courseNo": course.course_no,
     }
-    print(f"计算课程完成情况: {course.course_name} ({course.course_no})")
+    print(f"更新课程完成情况: {course.course_name} ({course.course_no})")
     resp = client.post(url, json=payload)
     if not resp.get("isSuccess"):
-        raise RuntimeError(f"触发计算课程完成情况失败: {resp.get('message', resp)}")
+        raise RuntimeError(f"更新课程完成情况失败: {resp.get('message', resp)}")
 
 
 def get_course_finish_info(course: Course) -> Course:
@@ -255,7 +255,7 @@ def compute_zone_finish(zone: Zone) -> None:
     payload = {
         "classNo": zone.class_no,
     }
-    print(f"计算专区完成情况: {zone.class_name} ({zone.class_no})")
+    print(f"更新专区完成情况: {zone.class_name} ({zone.class_no})")
     resp = client.post(url, json=payload)
     if not resp.get("isSuccess"):
-        raise RuntimeError(f"触发计算专区完成情况失败: {resp.get('message', resp)}")
+        raise RuntimeError(f"更新专区完成情况失败: {resp.get('message', resp)}")
