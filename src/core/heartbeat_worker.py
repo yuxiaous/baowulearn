@@ -49,7 +49,7 @@ class HeartbeatWorker:
 
         self._page_id = str(uuid.uuid4())
         self._heartbeat_interval = 60  # 秒，默认心跳间隔（实际以服务端返回为准）
-        self._refresh_interval = 180  # 秒，_refresh_finish_info 调用间隔
+        self._refresh_interval = 60 * 4  # 秒，_refresh_finish_info 调用间隔
 
         self._stop_event = threading.Event()
         self._thread = threading.Thread(
@@ -92,7 +92,7 @@ class HeartbeatWorker:
                     break
 
                 # 轮到该视频时才查询播放进度，并立即更新界面显示
-                start_secs = video_api.get_playback_progress(course, video)
+                start_secs = video_api.get_playback_progress(video)
                 self._listener.on_video_progress(course, video, start_secs, video.duration)
 
                 # 已到达或超过视频末尾 → 该视频已完成，跳过

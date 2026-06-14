@@ -45,7 +45,7 @@ POST https://learn.baowugroup.com/learn-gateway/service/tms/rls/courseOutline/qu
 - `data[].content[].contentName`: 视频名称，例如：视频名称。
 - `data[].content[].newContentName`: 视频名称（带编号），例如：1-1 视频名称。
 - `data[].content[].contentType`: 内容类型，"1" 视频
-- `data[].content[].duration`: 视频时长。
+- `data[].content[].duration`: 视频时长（秒）。
 - `data[].content[].markeTimePoint`: 视频打卡时间。
 - `data[].content[].learnedStatus`: 当前视频学习状态，null 未学习，"0" 学习中，"1" 已完成。
 - `data[].content[].status`: 内容状态，"1" 有效

@@ -51,38 +51,34 @@ def get_course_videos(course: Course) -> list[Video]:
     """
     url = "/tms/rls/courseOutline/queryCourseOutlineContentTreeListSimple"
     payload = {
-        "centerCode": course.center_code,
-        "courseNo": course.course_no,
+        "centerCode": course.center_code,  # 中心编码
+        "courseNo": course.course_no,  # 课程编号
         "isAppendPre": "1",
     }
     resp = client.post(url, json=payload)
     if not resp.get("isSuccess"):
         raise RuntimeError(f"获取课程视频列表失败: {resp.get('message', resp)}")
 
-    videos: list[Video] = []
-    idx = 0
-    for chapter in resp.get("data", []):
-        for item in chapter.get("content", []):
-            if str(item.get("contentType")) == "1" and str(item.get("status")) == "1":
-                videos.append(
-                    Video(
-                        video_guid=str(item.get("guid", "")),
-                        video_name=str(item.get("newContentName", "")),
-                        cata_no=str(item.get("cataNo", "")),
-                        cata_type=str(item.get("cataType", "")),
-                        ware_id=str(item.get("wareCode", "")),
-                        ware_type=str(item.get("wareType", "1")),
-                        course_no=str(item.get("courseNo", "")),
-                        tenant_code=str(item.get("tenantCode", "")),
-                        center_code=str(item.get("centerCode", "")),
-                        duration=int(item.get("duration", 0)),
-                        mark_points=parse_mark_points(item.get("markeTimePoint", "")),
-                        learned_status=str(item.get("learnedStatus", None)),
-                        index=idx,
-                        course=course,
-                    )
-                )
-                idx += 1
+    videos = [
+        Video(
+            video_guid=content.get("guid"),
+            video_name=content.get("newContentName"),
+            cata_no=content.get("cataNo"),
+            cata_type=content.get("cataType"),
+            ware_id=content.get("wareCode"),
+            ware_type=content.get("wareType"),
+            course_no=content.get("courseNo"),
+            tenant_code=content.get("tenantCode"),  # 租户编码
+            center_code=content.get("centerCode"),  # 中心编码
+            duration=int(content.get("duration") or 0),  # 视频时长（秒）
+            mark_points=parse_mark_points(content.get("markeTimePoint") or ""),
+            learned_status=content.get("learnedStatus") or None,
+            course=course,
+        )
+        for chapter in resp.get("data") or []
+        for content in chapter.get("content") or []
+        if content.get("contentType") == "1" and content.get("status") == "1"
+    ]
     return videos
 
 
@@ -115,15 +111,15 @@ def init_learn_record(course: Course, page_id: str) -> tuple[str, str]:
 # ── 已播放进度查询 ───────────────────────────────────────────────────────────────
 
 
-def get_playback_progress(course: Course, video: Video) -> int:
+def get_playback_progress(video: Video) -> int:
     """
     查询视频已播放的最大时间，返回秒数。
     """
     url = "/tms/ols/learnWareProgress/getMaxTimeAndLastTime"
     payload = {
         "cataNo": video.cata_no,
-        "courseNo": course.course_no,
-        "olClassNo": course.class_no,
+        "courseNo": video.course_no,
+        "olClassNo": video.course.class_no,
         "wareId": video.ware_id,
         "wareType": video.ware_type,
     }

@@ -397,7 +397,7 @@ class MainWindow(QMainWindow):
         """每秒刷新状态栏进度；同步刷新行内容。"""
         pct = elapsed * 100 // total if total else 0
         self._status_bar.showMessage(
-            f"挂机中：{course.course_name}  [{video.index + 1}] {video.video_name}"
+            f"挂机中：{course.course_name} / {video.video_name}"
             f"  {elapsed // 60}:{elapsed % 60:02d}/{total // 60}:{total % 60:02d}"
             f"  ({pct}%)"
         )
