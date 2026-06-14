@@ -17,8 +17,8 @@ POST https://learn.baowugroup.com/learn-gateway/service/tms/rls/courseOutline/qu
 
 ### 请求字段说明
 
+- `centerCode`: 学习中心编号, "C001" 集团站点，"C002" 人才开发院。
 - `courseNo`: 目标课程编号。
-- `centerCode`: 学习中心编号。
 - `isAppendPre`: 是否附加前置内容，示例中为 `1`。
 
 ### 请求体
@@ -37,12 +37,18 @@ POST https://learn.baowugroup.com/learn-gateway/service/tms/rls/courseOutline/qu
 
 ### 响应字段说明
 
-- `data[].content[].cataNo`: 视频目录节点编号。
-- `data[].content[].wareCode`: 视频资源编号，后续播放链路会继续使用。
-- `data[].content[].wareType`: 资源类型，示例中视频为 `1`。
+- `data[].content[].cataNo`: 目录编号。
+- `data[].content[].cataType`: 目录类型。
+- `data[].content[].wareCode`: 仓库编号，后续播放链路会继续使用。
+- `data[].content[].wareType`: 仓库类型，"1" 视频，"2" pdf文档（待确定）。
+- `data[].content[].courseNo`: 课程编号。
+- `data[].content[].contentName`: 视频名称，例如：视频名称。
+- `data[].content[].newContentName`: 视频名称（带编号），例如：1-1 视频名称。
+- `data[].content[].contentType`: 内容类型，"1" 视频
 - `data[].content[].duration`: 视频时长。
-- `data[].content[].markeTimePoint`: 视频打点时间，用于后续打卡上报。
-- `data[].content[].learnedStatus`: 当前视频学习状态。
+- `data[].content[].markeTimePoint`: 视频打卡时间。
+- `data[].content[].learnedStatus`: 当前视频学习状态，null 未学习，"0" 学习中，"1" 已完成。
+- `data[].content[].status`: 内容状态，"1" 有效
 
 ### 响应体
 

@@ -51,6 +51,7 @@ POST https://learn.baowugroup.com/learn-gateway/service/tms/ols/onlineClassCours
 - `data.records[].courseName`: 课程名称，用于列表展示。
 - `data.records[].learnStatus`: 当前课程完成状态。
 - `data.records[].courseTypeName`: 课程分类展示信息。
+- `data.records[].isMustTeach`: 是否必修课，"0" 选修，"1" 必修
 
 ### 响应体
 

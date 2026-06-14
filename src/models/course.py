@@ -38,7 +38,7 @@ class Course:
     tenant_code: str = None  # 租户编码 (BSTA)
     begin_time: str = None  # 学习开始时间（格式 "2024-01-01"）
     end_time: str = None  # 学习结束时间（格式 "2024-01-01"）
-    learn_status: LearnStatus = LearnStatus.UNLEARNED  # 学习状态："0"未学习, "1"学习中, "2"已完成
+    learn_status: LearnStatus = LearnStatus.UNLEARNED  # 学习状态
     course_hours: float = 0.0  # 课程学时
     course_score: float = 0.0  # 课程成绩
     course_duration: float = 0  # 课程总时长（分钟）

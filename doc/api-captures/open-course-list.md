@@ -48,7 +48,7 @@ POST https://learn.baowugroup.com/learn-gateway/service/tms/ols/student/queryPag
 - `data.records[].courseGuid`: 课程详情接口需要的课程记录标识。
 - `data.records[].courseNo`: 查询视频目录、初始化学习和统计进度时会继续使用。
 - `data.records[].courseName`: 课程名称。
-- `data.records[].learnStatus`: 当前课程学习状态，可用于界面展示。
+- `data.records[].learnStatus`: 当前课程学习状态，null 未学习, "1" 学习中, "2" 已完成。
 
 ### 响应体
 
