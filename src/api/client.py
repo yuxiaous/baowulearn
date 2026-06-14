@@ -39,7 +39,7 @@ def clear_token() -> None:
 def post(path: str, json: dict | None = None, **kwargs) -> dict:
     """发起 POST 请求，自动拼接 BASE_URL，返回响应 JSON。"""
     url = BASE_URL + path
-    resp = _session.post(url, json=json or {}, **kwargs)
+    resp = _session.post(url, json=json or {}, timeout=kwargs.pop("timeout", 10), **kwargs)
     resp.raise_for_status()
     return resp.json()
 
@@ -47,6 +47,6 @@ def post(path: str, json: dict | None = None, **kwargs) -> dict:
 def get(path: str, **kwargs) -> dict:
     """发起 GET 请求，自动拼接 BASE_URL，返回响应 JSON。"""
     url = BASE_URL + path
-    resp = _session.get(url, **kwargs)
+    resp = _session.get(url, timeout=kwargs.pop("timeout", 10), **kwargs)
     resp.raise_for_status()
     return resp.json()
