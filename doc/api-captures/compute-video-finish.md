@@ -1,7 +1,5 @@
 # 视频完成度重算
 
-> 原始接口名：saveComputeTask4AfterVideoPlayed
-
 在单个视频播放完成后触发一次服务端计算。
 
 POST https://learn.baowugroup.com/learn-gateway/service/tms/ols/computeTask/saveComputeTask4AfterVideoPlayed

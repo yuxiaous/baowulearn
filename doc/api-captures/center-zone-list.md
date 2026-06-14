@@ -1,8 +1,6 @@
-# 获取学习专区列表
+# 学习中心专区列表查询
 
-> 原始接口名：queryMainOnlineClassPage
-
-获取集团站点学习专区列表。
+获取学习中心的专区列表。
 
 POST https://learn.baowugroup.com/learn-gateway/service/tms/ols/onlineClass/queryMainOnlineClassPage
 
@@ -49,7 +47,6 @@ POST https://learn.baowugroup.com/learn-gateway/service/tms/ols/onlineClass/quer
 
 - `data.records[].olClassNo`: 专区编号，后续查询专区课程和专区统计时要用到。
 - `data.records[].olClassName`: 专区名称，用于列表展示。
-- `data.records[].courseNum`: 专区内课程数量。
 - `data.total`、`data.pages`: 分页统计信息。
 
 ### 响应体

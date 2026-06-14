@@ -1,7 +1,5 @@
 # 专区课程完成明细查询
 
-> 原始接口名：itemFinishStatisticsSortPage
-
 查询专区内每门课程的完成情况。
 
 POST https://learn.baowugroup.com/learn-gateway/service/tms/ols/onlineClass/itemFinishStatisticsSortPage

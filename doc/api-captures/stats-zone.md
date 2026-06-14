@@ -1,7 +1,5 @@
 # 专区总体完成度查询
 
-> 原始接口名：totalFinishStatistics
-
 查询专区整体完成情况和达标要求。
 
 POST https://learn.baowugroup.com/learn-gateway/service/tms/ols/onlineClass/totalFinishStatistics

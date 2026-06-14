@@ -1,7 +1,5 @@
 # 专区完成度重算
 
-> 原始接口名：saveComputeTask4StuClassDetail
-
 触发专区维度的完成度重新计算。
 
 POST https://learn.baowugroup.com/learn-gateway/service/tms/ols/computeTask/saveComputeTask4StuClassDetail

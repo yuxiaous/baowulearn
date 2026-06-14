@@ -1,7 +1,5 @@
 # 历史播放进度查询
 
-> 原始接口名：getMaxTimeAndLastTime
-
 查询某个视频当前已经学习到的播放位置。
 
 POST https://learn.baowugroup.com/learn-gateway/service/tms/ols/learnWareProgress/getMaxTimeAndLastTime

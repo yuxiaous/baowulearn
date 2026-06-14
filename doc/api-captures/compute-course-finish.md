@@ -1,7 +1,5 @@
 # 课程完成度重算
 
-> 原始接口名：saveComputeTask4StuCourseDetail
-
 触发课程维度的完成度重新计算。
 
 POST https://learn.baowugroup.com/learn-gateway/service/tms/ols/computeTask/saveComputeTask4StuCourseDetail

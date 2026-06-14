@@ -1,7 +1,5 @@
 # 课程完成情况查询
 
-> 原始接口名：finishInfo
-
 查询单门课程当前的完成度和得分情况。
 
 POST https://learn.baowugroup.com/learn-gateway/service/tms/ols/onlineClassCourse/finishInfo

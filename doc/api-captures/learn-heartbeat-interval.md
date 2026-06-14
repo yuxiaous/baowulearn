@@ -1,7 +1,5 @@
 # 心跳间隔配置查询
 
-> 原始接口名：queryPropValue
-
 读取学习心跳发送频率配置，为后续心跳上报确定发送间隔。
 
 POST https://learn.baowugroup.com/learn-gateway/service/ss/properties/queryPropValue

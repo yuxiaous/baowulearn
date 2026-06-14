@@ -1,7 +1,5 @@
 # 视频播放事件上报
 
-> 原始接口名：listenVideoOptRecord
-
 记录播放器中的关键动作事件。
 
 POST https://learn.baowugroup.com/learn-gateway/service/tms/ols/learnVideoRecord/listenVideoOptRecord

@@ -1,7 +1,5 @@
 # 学习心跳上报
 
-> 原始接口名：saveLearnHertRecord
-
 按固定间隔上报学习心跳并累计学习时长。
 
 POST https://learn.baowugroup.com/learn-gateway/service/tms/ols/learnHertRecord/saveLearnHertRecord

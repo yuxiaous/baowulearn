@@ -1,6 +1,4 @@
-# 课程目录查询
-
-> 原始接口名：queryCourseOutlineContentTreeListSimple
+# 学习专区课程列表查询
 
 获取课程下的视频或课件目录。
 

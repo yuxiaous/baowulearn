@@ -1,8 +1,6 @@
 # 公开课列表查询
 
-> 原始接口名：queryPageOpenClass
-
-获取公开课列表及进入课程学习所需的关键标识。
+获取已学习的公开课列表。需要先在宝武学习系统中学习某个课程，并产生课程学习进度后，才能从公开课接口中获取到课程的信息。
 
 POST https://learn.baowugroup.com/learn-gateway/service/tms/ols/student/queryPageOpenClass
 

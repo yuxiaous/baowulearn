@@ -1,8 +1,6 @@
-# 专区课程列表查询
+# 学习专区课程列表查询
 
-> 原始接口名：getOnlineClassCourseSortPage
-
-获取某个学习专区下的课程列表。
+获取某个学习专区的课程列表。
 
 POST https://learn.baowugroup.com/learn-gateway/service/tms/ols/onlineClassCourse/getOnlineClassCourseSortPage
 

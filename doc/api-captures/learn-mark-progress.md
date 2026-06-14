@@ -1,7 +1,5 @@
 # 关键时间点打卡
 
-> 原始接口名：listenVideoMarkProgress
-
 在关键打点时间上报一次学习进度。
 
 POST https://learn.baowugroup.com/learn-gateway/service/tms/ols/learnWareProgress/listenVideoMarkProgress

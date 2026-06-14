@@ -51,20 +51,19 @@
 | 字段 | 含义 |
 | --- | --- |
 | `olClassNo` | 学习项目/公开课/专区编号，后续大多数接口都会依赖它 |
-| `guid` | 某门课程在专区或公开课中的记录主键，常用于查询课程详情 |
 | `courseNo` | 课程编号，查询视频列表、初始化学习、刷新课程完成度时使用 |
 | `cataNo` | 视频目录或课件节点编号 |
 | `wareId` | 视频资源或课件资源编号 |
 | `wareType` | 资源类型，样例中视频均为 `1` |
 | `pageId` | 一次学习会话的页面标识，初始化学习后在心跳/打点中复用 |
-| `centerCode` | 学习中心编号，样例中常见为 `C001` |
+| `centerCode` | 学习中心编号，样例中常见为 `C001` `C002` |
 | `tenantCode` | 租户编号，样例中为 `BSTA` |
 
 ## 整体说明
 
 本目录中的接口示例可以按两条主线理解：一条是公开课学习链路，另一条是专区学习链路。两条链路在入口不同，但进入单门课程后，会收敛到同一套课程详情、视频播放、进度上报和完成度统计接口。
 
-从阅读顺序上看，可以先理解入口接口如何拿到 `olClassNo`、`guid`、`courseNo`，再理解这些标识如何在课程详情、目录查询、学习初始化、播放上报和统计接口之间传递。
+从阅读顺序上看，可以先理解入口接口如何拿到 `olClassNo`、`courseNo`，再理解这些标识如何在课程详情、目录查询、学习初始化、播放上报和统计接口之间传递。
 
 ## 文件命名约定
 
@@ -76,9 +75,9 @@
 
 ### 公开课学习链路
 
-公开课链路从登录开始。登录成功后，通过 [auth-login.md](./auth-login.md) 获取 `accessToken`，再用 [open-course-list.md](./open-course-list.md) 获取公开课列表。这个列表接口会返回后续要继续使用的 `olClassNo`、`courseGuid` 和 `courseNo`。
+公开课链路从登录开始。登录成功后，通过 [auth-login.md](./auth-login.md) 获取 `accessToken`，再用 [open-course-list.md](./open-course-list.md) 获取公开课列表。这个列表接口会返回后续要继续使用的 `olClassNo`、`courseGuid` 和 `courseNo` 等信息。
 
-拿到课程标识后，先用 [course-detail.md](./course-detail.md) 查询课程详情，再用 [course-outline.md](./course-outline.md) 获取视频目录。目录接口会返回具体视频的 `cataNo`、`wareId`/`wareCode`、`wareType` 和 `markeTimePoint`，这些字段会直接进入后续播放链路。
+拿到课程标识后，再用 [course-video-list.md](./course-video-list.md) 获取视频目录。目录接口会返回具体视频的 `cataNo`、`wareId`/`wareCode`、`wareType` 和 `markeTimePoint`，这些字段会直接进入后续播放链路。
 
 真正开始学习前，需要调用 [learn-init-record.md](./learn-init-record.md) 建立学习会话，并生成后续心跳和打点接口要复用的 `pageId`。随后可通过 [learn-playback-progress.md](./learn-playback-progress.md) 恢复历史播放进度，并可通过 [learn-heartbeat-interval.md](./learn-heartbeat-interval.md) 读取服务端配置的心跳发送间隔，再结合 [learn-video-event.md](./learn-video-event.md)、[learn-heartbeat.md](./learn-heartbeat.md) 和 [learn-mark-progress.md](./learn-mark-progress.md) 完成动作上报、心跳累计和关键时间点打卡。
 
@@ -86,7 +85,7 @@
 
 ### 专区学习链路
 
-专区链路同样从登录开始。登录成功后，先通过 [zone-list.md](./zone-list.md) 获取专区列表，拿到目标专区的 `olClassNo`。进入专区后，再通过 [zone-course-list.md](./zone-course-list.md) 获取该专区下的课程列表，并拿到课程 `guid` 和 `courseNo`。
+专区链路同样从登录开始。登录成功后，先通过 [center-zone-list.md](./center-zone-list.md) 获取某个学习中心的专区列表，拿到目标专区的 `olClassNo`。进入专区后，再通过 [zone-course-list.md](./zone-course-list.md) 获取该专区下的课程列表，并拿到课程 `guid` 和 `courseNo`。
 
 当进入某门课程后，后续学习流程与公开课一致，仍然会依次使用课程详情、课程目录、学习初始化、播放事件、心跳、打点和课程完成度刷新接口。
 
@@ -108,7 +107,7 @@
 
 | 接口 | 路径 | 主要作用 | 结果关注点 |
 | --- | --- | --- | --- |
-| [zone-list.md](./zone-list.md) | `/tms/ols/student/myClassPage` | 获取学习专区列表 | 专区 `olClassNo`、名称、课程数 |
+| [center-zone-list.md](./center-zone-list.md) | `/tms/ols/onlineClass/queryMainOnlineClassPage` | 获取学习专区列表 | 专区号、专区名称 |
 | [zone-course-list.md](./zone-course-list.md) | `/tms/ols/onlineClassCourse/getOnlineClassCourseSortPage` | 获取专区课程列表 | 课程 `guid`、`courseNo`、`learnStatus` |
 | [open-course-list.md](./open-course-list.md) | `/tms/ols/student/queryPageOpenClass` | 获取公开课列表 | `olClassNo`、`courseGuid`、`courseNo`、`learnStatus` |
 
@@ -119,7 +118,7 @@
 | 接口 | 路径 | 主要作用 | 结果关注点 |
 | --- | --- | --- | --- |
 | [course-detail.md](./course-detail.md) | `/tms/ols/onlineClassCourse/detailOnlineClassCourse` | 查询课程详情 | `courseNo`、`olClassNo`、讲师、课时、课程简介 |
-| [course-outline.md](./course-outline.md) | `/tms/rls/courseOutline/queryCourseOutlineContentTreeListSimple` | 查询课程目录 | `cataNo`、`wareCode`/`wareId`、`duration`、`markeTimePoint` |
+| [course-video-list.md](./course-video-list.md) | `/tms/rls/courseOutline/queryCourseOutlineContentTreeListSimple` | 查询课程目录 | `cataNo`、`wareCode`/`wareId`、`duration`、`markeTimePoint` |
 
 ### 学习初始化与进度恢复接口
 
@@ -167,53 +166,6 @@
 
 本节面向维护者和 AI 会话使用，不参与本目录的正常阅读顺序。无论是新的 AI 会话，还是人工补文档，只要要在本目录新增单接口文档，都应先阅读本节，再执行新增和 README 更新。
 
-### 输入约定
-
-新增接口文档时，至少应提供以下信息：
-
-- 接口 URL
-- 请求方式
-- 请求体示例
-- 响应体示例
-
-如果已知，建议一并提供以下补充信息，AI 可直接复用；如果未提供，则由 AI 基于接口路径、字段和现有文档风格自行判断：
-
-- 原始接口名
-- 接口作用
-- 调用时机
-- 前置条件
-- 后续依赖
-
-推荐输入格式如下。字段名称可以保持中文，只要语义明确即可：
-
-````markdown
-原始接口名: listenVideoStart
-接口 URL: /tms/ols/learnVideoRecord/listenVideoStart
-请求方式: POST
-
-接口作用:
-开始播放视频时通知服务端建立一次播放动作。
-
-请求体:
-```json
-{
-	"pageId": "<pageId>",
-	"cataNo": "<cataNo>",
-	"wareId": "<wareId>",
-	"wareType": "1"
-}
-```
-
-响应体:
-```json
-{
-	"isSuccess": true,
-	"statusCode": 200,
-	"data": true
-}
-```
-````
-
 ### AI 执行规则
 
 当用户提供上述基本信息后，AI 应按以下顺序完成新增：
@@ -250,8 +202,6 @@
 
 ````markdown
 # <业务标题>
-
-> 原始接口名：<rawApiName>
 
 <用一句话说明这个接口解决什么问题。>
 

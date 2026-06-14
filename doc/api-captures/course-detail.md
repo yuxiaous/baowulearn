@@ -1,7 +1,5 @@
 # 课程详情查询
 
-> 原始接口名：detailOnlineClassCourse
-
 查询单门课程的详细信息。
 
 POST https://learn.baowugroup.com/learn-gateway/service/tms/ols/onlineClassCourse/detailOnlineClassCourse

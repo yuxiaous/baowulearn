@@ -1,7 +1,5 @@
 # 学习记录初始化
 
-> 原始接口名：initLearnRecord
-
 初始化一次课程学习会话。
 
 POST https://learn.baowugroup.com/learn-gateway/service/tms/ols/learnRecord/initLearnRecord

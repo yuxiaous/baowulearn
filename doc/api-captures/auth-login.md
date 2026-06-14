@@ -1,7 +1,5 @@
 # 账号登录
 
-> 原始接口名：login
-
 完成账号密码登录并获取访问令牌。
 
 POST https://learn.baowugroup.com/learn-gateway/service/ss/auth/user/login
